@@ -75,6 +75,8 @@ cc_library(
         "//score/crypto/objects:crypto_objects",
         "//score/crypto/src/ipc/message_passing_adapter:ipc_config",
         "//score/crypto/types",
+        "//score/crypto/src/daemon/common/context:context_mode",
+        "//score/crypto/src/daemon/common/context:context_types",
         "@score_baselibs//score/language/futurecpp",
         "@score_baselibs//score/result",
     ],
