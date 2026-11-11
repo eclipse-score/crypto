@@ -103,8 +103,8 @@ score::crypto::Expected<ProviderHandlerSelection, score::crypto::CryptoErrorCode
         return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kKeyOperationNotPermitted);
     }
 
-    const std::array<std::optional<common::CryptoProviderType>, 2U> candidates{request.provider_type_preference.primary,
-                                                                               request.provider_type_preference.fallback};
+    const std::array<std::optional<common::CryptoProviderType>, 2U> candidates{
+        request.provider_type_preference.primary, request.provider_type_preference.fallback};
     std::optional<common::ProviderId> previous_provider_id{};
     auto last_error = score::crypto::CryptoErrorCode::kProviderNotAvailable;
 
