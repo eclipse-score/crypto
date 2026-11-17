@@ -263,6 +263,82 @@ TEST_F(SecureEraseFileTest, RejectsNamedPipeWithoutBlocking)
     EXPECT_TRUE(std::filesystem::exists(path));
 }
 
+// A missing directory holds no key file, so there is nothing to erase.
+TEST_F(SecureEraseFileTest, MissingDirectoryIsIdempotent)
+{
+    const auto result = SecureEraseFile((PathOf("missing") / "key").string(), kMaxSize);
+
+    EXPECT_TRUE(result.has_value());
+}
+
+// A store interrupted between writing and publishing leaves the key in a temporary file
+// next to the key file. Clearing the slot erases those too, and nothing else.
+TEST_F(SecureEraseFileTest, ErasesLeftoverTemporaryFiles)
+{
+    const auto path = PathOf("key");
+    WriteAll(path, std::vector<char>(16U, '\x5A'));
+    WriteAll(PathOf("key.tmp.1.0123abcd"), std::vector<char>(16U, '\x5A'));
+    WriteAll(PathOf("key.tmp." + std::to_string(::getpid()) + ".89ef"), std::vector<char>(16U, '\x5A'));
+    const std::vector<char> unrelated(16U, '\x11');
+    WriteAll(PathOf("other.tmp.1.0123abcd"), unrelated);
+
+    const auto result = SecureEraseFile(path.string(), kMaxSize);
+
+    ASSERT_TRUE(result.has_value());
+    std::vector<std::filesystem::path> entries;
+    for (const auto& entry : std::filesystem::directory_iterator{m_dir})
+    {
+        entries.push_back(entry.path());
+    }
+    EXPECT_EQ(entries, std::vector<std::filesystem::path>{PathOf("other.tmp.1.0123abcd")});
+    EXPECT_EQ(ReadAll(PathOf("other.tmp.1.0123abcd")), unrelated);
+}
+
+// The file is already gone (an earlier erase removed it and then failed to flush the
+// directory). The retry still succeeds and flushes the directory.
+TEST_F(SecureEraseFileTest, RetryAfterRemovalSucceeds)
+{
+    const auto path = PathOf("key");
+    WriteAll(path, std::vector<char>(16U, '\x5A'));
+    ASSERT_TRUE(SecureEraseFile(path.string(), kMaxSize).has_value());
+
+    const auto result = SecureEraseFile(path.string(), kMaxSize);
+
+    EXPECT_TRUE(result.has_value());
+    EXPECT_FALSE(std::filesystem::exists(path));
+}
+
+// A umask such as 0277 leaves a key file without owner write permission (0400). It must
+// still be erasable.
+TEST_F(SecureEraseFileTest, ErasesFileWithoutOwnerWritePermission)
+{
+    const auto path = PathOf("key");
+    WriteAll(path, std::vector<char>(16U, '\x5A'));
+    ASSERT_EQ(::chmod(path.c_str(), S_IRUSR), 0);
+
+    const auto result = SecureEraseFile(path.string(), kMaxSize);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(std::filesystem::exists(path));
+}
+
+// In a directory other users can write, an entry may be planted or swapped at any time, so
+// nothing there is erased.
+TEST_F(SecureEraseFileTest, RejectsDirectoryWritableByOthers)
+{
+    const auto path = PathOf("key");
+    const std::vector<char> data(16U, '\x5A');
+    WriteAll(path, data);
+    ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO), 0);
+
+    const auto result = SecureEraseFile(path.string(), kMaxSize);
+
+    ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU), 0);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DaemonErrorCode::kInvalidArgument);
+    EXPECT_EQ(ReadAll(path), data);
+}
+
 // CreateSecretFile shares the fixture: a private directory under TEST_TMPDIR.
 using CreateSecretFileTest = SecureEraseFileTest;
 
@@ -317,14 +393,61 @@ TEST_F(CreateSecretFileTest, LeftoverTemporaryFileDoesNotBlockStore)
     EXPECT_EQ(ReadFile(PathOf("key2").string(), kMaxSize).value(), secret);
 }
 
-TEST_F(CreateSecretFileTest, CreatesMissingParentDirectory)
+// Every missing directory of the chain is created owner-only.
+TEST_F(CreateSecretFileTest, CreatesMissingParentDirectories)
 {
-    const auto path = PathOf("nested") / "key";
+    const auto path = PathOf("nested") / "deeper" / "key";
 
     const auto result = CreateSecretFile(path.string(), AsSpan(std::vector<std::uint8_t>(16U, 0x5AU)));
 
     ASSERT_TRUE(result.has_value());
     EXPECT_TRUE(std::filesystem::is_regular_file(path));
+    for (const auto& directory : {PathOf("nested"), PathOf("nested") / "deeper"})
+    {
+        struct stat status{};
+        ASSERT_EQ(::stat(directory.c_str(), &status), 0);
+        EXPECT_EQ(status.st_mode & 0777U, 0700U) << directory;
+    }
+}
+
+// The umask must not narrow the key file to 0400 (or the directory to 0500), which would
+// leave a key this process could no longer erase.
+TEST_F(CreateSecretFileTest, ModeDoesNotDependOnUmask)
+{
+    const auto path = PathOf("nested") / "key";
+    const mode_t previous = ::umask(0277);
+
+    const auto result = CreateSecretFile(path.string(), AsSpan(std::vector<std::uint8_t>(16U, 0x5AU)));
+
+    static_cast<void>(::umask(previous));
+    ASSERT_TRUE(result.has_value());
+    struct stat status{};
+    ASSERT_EQ(::stat(path.c_str(), &status), 0);
+    EXPECT_EQ(status.st_mode & 0777U, 0600U);
+    EXPECT_TRUE(SecureEraseFile(path.string(), kMaxSize).has_value());
+}
+
+// A process that crashed before publishing left its temporary file; the next store erases it.
+TEST_F(CreateSecretFileTest, ErasesTemporaryFileOfCrashedProcess)
+{
+    const auto path = PathOf("key");
+    WriteAll(PathOf("key.tmp.1.0123abcd"), std::vector<char>(16U, '\x11'));
+
+    ASSERT_TRUE(CreateSecretFile(path.string(), AsSpan(std::vector<std::uint8_t>(16U, 0x5AU))).has_value());
+
+    EXPECT_FALSE(std::filesystem::exists(PathOf("key.tmp.1.0123abcd")));
+}
+
+TEST_F(CreateSecretFileTest, RejectsDirectoryWritableByOthers)
+{
+    ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU | S_IRWXG | S_IRWXO), 0);
+
+    const auto result = CreateSecretFile(PathOf("key").string(), AsSpan(std::vector<std::uint8_t>(16U, 0x5AU)));
+
+    ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU), 0);
+    ASSERT_FALSE(result.has_value());
+    EXPECT_EQ(result.error(), DaemonErrorCode::kInvalidArgument);
+    EXPECT_FALSE(std::filesystem::exists(PathOf("key")));
 }
 
 TEST_F(CreateSecretFileTest, ExistingFileIsNeverReplaced)

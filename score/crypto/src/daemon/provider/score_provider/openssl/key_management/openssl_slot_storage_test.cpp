@@ -155,6 +155,27 @@ TEST_F(OpenSslSlotStorageTest, StoreThenLoad_EcKeyPair_ReturnsTheSameKey)
     EXPECT_EQ(Serialized(*loaded.value()), Serialized(*key));
 }
 
+// Whether a key has its private half is read from the key itself, for every asymmetric key
+// type, so a key pair is never stored as its public half only.
+TEST_F(OpenSslSlotStorageTest, StoreThenLoad_RsaAndEd25519KeyPairs_KeepThePrivateHalf)
+{
+    for (const std::string algorithm : {"RSA-2048", "Ed25519"})
+    {
+        SCOPED_TRACE(algorithm);
+        const auto slot = MakeSlot(algorithm, KeyOperationPermission::kSign | KeyOperationPermission::kVerify);
+        const auto key = Generate(algorithm, KeyOperationPermission::kSign);
+        ASSERT_NE(key, nullptr);
+
+        ASSERT_TRUE(m_slot_handler->StoreKey(slot, *key).has_value());
+
+        const auto loaded = m_slot_handler->LoadKey(slot);
+        ASSERT_TRUE(loaded.has_value());
+        EXPECT_TRUE(
+            score::crypto::HasPermission(loaded.value()->GetHandle().permissions, KeyOperationPermission::kSign));
+        EXPECT_EQ(Serialized(*loaded.value()), Serialized(*key));
+    }
+}
+
 TEST_F(OpenSslSlotStorageTest, StoreThenLoad_PublicOnlyEcKey_ReturnsTheSameKey)
 {
     const auto spki = tests::utility::read_bin("score/tests/test_vectors/ecdsa/P256-SHA256/siggen_public_key.der");
