@@ -34,7 +34,6 @@
 Concept for configuration for score::crypto
 ============================================
 
-
 Goals
 ======
 1. Concept shall align with stakeholder requirements, central concept and decision records of eclipse score.
@@ -42,6 +41,9 @@ Goals
 3. Loose coupling with user applications.
 4. Ease of use : there shall be possibility of fallback default values, which the integrator/ user can reuse across applications instead of focrcing to configure for every application.
 5. Cross Module accessibility.
+6. Absolute and relative paths for key and certs
+7. enfocring common interface for additonal schema fbs files used
+
 
 Goals of Config Parser
 =======================
