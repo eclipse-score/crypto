@@ -15,7 +15,7 @@
 
 #include "score/crypto/src/daemon/cert_management/resolver/trust_store_resource_resolver.hpp"
 
-#include "score/crypto/src/api/types/common.hpp"
+#include "score/crypto/types/common.hpp"
 
 #include <cstdint>
 #include <string>
