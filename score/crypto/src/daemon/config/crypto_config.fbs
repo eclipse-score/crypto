@@ -37,7 +37,7 @@ table KeySlotEntry {
   allowed_uids: [uint32] (required);
   /// UIDs permitted to write/generate into the slot
   allowed_write_uids: [uint32] (required);
-  /// Absolute path to the deployment descriptor file.
+  /// Absolute, or relative to deployment_root.
   deployment_path: string (required);
   /// Format of the deployment descriptor (default "kv").
   deployment_format: string (required);
@@ -113,7 +113,7 @@ table CertSlotEntry {
   allowed_uids: [uint32];
   /// UIDs permitted to write into the slot
   allowed_write_uids: [uint32];
-  /// Absolute path to the KV deployment descriptor
+  /// Absolute, or relative to deployment_root.
   deployment_path: string (required);
   /// Descriptor format (default "kv")
   deployment_format: string = "kv";
@@ -134,7 +134,7 @@ table TrustStoreEntry {
   allowed_uids: [uint32];
   /// UIDs permitted to mutate membership (add/remove/enable/disable)
   allowed_write_uids: [uint32];
-  /// Absolute path for persisting trust store state (enabled/disabled flags, accepted fingerprints)
+  /// Absolute, or relative to deployment_root.
   deployment_path: string (required);
   /// State descriptor format (default "kv")
   deployment_format: string = "kv";
@@ -201,22 +201,53 @@ table GeneralConfig {
 }
 
 // ---------------------------------------------------------------------------
+// IPC configuration
+// ---------------------------------------------------------------------------
+
+/// Per-UID shared memory configuration
+table UidShmConfig {
+  /// UID this configuration applies to
+  uid: uint32;
+  /// Size of the shared memory pool region for this UID, in bytes
+  pool_region_size: uint64;
+  /// Size of each slot within the pool, in bytes
+  pool_slot_size: uint64;
+  /// Maximum bytes this UID can allocate across all connections
+  max_bytes_per_client: uint64;
+}
+
+table IpcConfig {
+
+  /// Maximum concurrently reserved client connections, all UIDs together (default 128)
+  max_total_connections: uint32 = 128;
+  /// Maximum reserved connections for a single UID. Bounded by max_total_connections (default 128)
+  max_connections_per_uid: uint32 = 128;
+  /// Per-UID shared memory configuration; absent UIDs use built-in defaults
+  uid_shm_configs: [UidShmConfig];
+
+}
+
+// ---------------------------------------------------------------------------
 // Top-level configuration root
 // ---------------------------------------------------------------------------
 
 /// Top-level configuration root_type.
 ///
-/// Both sections are optional — the daemon starts with empty registries for any
-/// section that is absent.  Supported deployment profiles:
+/// Every section is optional — the daemon starts with empty registries for key and
+/// cert sections that are absent, and with defaults for ipc_config and general_config.
+/// Supported deployment profiles:
 ///
 ///   Key management only  — provide key_slot_config, omit cert_slot_config.
 ///   Cert management only — provide cert_slot_config, omit key_slot_config.
 ///   Full stack           — provide both sections.
-///   Minimal / test       — omit both sections (empty config is valid).
+///   Minimal / test       — omit all sections (empty config is valid).
 table CryptoConfig {
   key_slot_config: KeySlotConfig;
   cert_slot_config: CertSlotConfig;
   general_config: GeneralConfig;
+  ipc_config: IpcConfig;
+  /// Root prefix for relative deployment_path values. Must be absolute when set.
+  deployment_root: string;
 }
 
 root_type CryptoConfig;

@@ -54,3 +54,13 @@ Stakeholder requirements
 ========================
 
 1. Decisioon record : https://eclipse-score.github.io/score/main/features/configuration/config_model/index.html#doc__configuration_model
+
+
+IPC config
+============
+
+1. Default path can be made part of fbd
+2. Is opaque to the user, that is by design of message passing lib currently.
+3. kMaxOutstandingOperationsPerConnection,kMaximumRequestTimeout shall not be part of fbs, also max payload size.
+4. kWorkerThreads can be made configurable from fbs
+5.
