@@ -119,6 +119,10 @@ table CertSlotEntry {
   deployment_format: string = "kv";
   /// Integrity enforcement (default disabled)
   integrity_policy: IntegrityPolicy = disabled;
+  /// Optional name of the key slot (KeySlotEntry.slot_name) holding the private key
+  /// that corresponds to this certificate; unset when no private key is mapped
+  /// TODO : add a validation  to allow only privateKey.
+  private_key_slot_name: string;
 }
 
 /// Single trust store definition
