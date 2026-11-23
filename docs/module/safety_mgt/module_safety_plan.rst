@@ -147,12 +147,12 @@ Crypto Component Work products List
         * - :need:`wp__requirements_comp`
           - :need:`gd_temp__req_comp_req`
           - :ndf:`copy('status', need_id='gd_temp__req_comp_req')`
-          - :need:`doc__crypto_requirements`
+          - :need:`doc__crypto_crypto_requirements`
 
         * - :need:`wp__requirements_comp_aou`
           - :need:`gd_temp__req_aou_req`
           - :ndf:`copy('status', need_id='gd_temp__req_aou_req')`
-          - :need:`doc__crypto_requirements`
+          - :need:`doc__crypto_crypto_requirements`
 
         * - :need:`wp__requirements_inspect`
           - :need:`gd_chklst__req_inspection`
