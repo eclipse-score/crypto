@@ -14,7 +14,9 @@
 #ifndef SCORE_CRYPTO_SRC_API_CONTROL_PLANE_CONNECTION_FACTORY_HPP
 #define SCORE_CRYPTO_SRC_API_CONTROL_PLANE_CONNECTION_FACTORY_HPP
 
+#include <chrono>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "score/crypto/src/api/common/error_domain.hpp"
@@ -25,12 +27,15 @@
 namespace score::crypto::api::control_plane
 {
 
-/// Factory for creating control client nodes
-/// Handles the creation and initialization of node connections to the daemon
+/// Factory for creating control client nodes.
+/// Connections for the same endpoint share one opened daemon-side connection
+/// and one underlying message-passing transport while a strong connection owner exists.
 class ConnectionFactory
 {
   public:
+    /// @brief Creates a factory for shared control-plane connections.
     ConnectionFactory() = default;
+    /// @brief Releases this factory without closing connections still held by callers.
     ~ConnectionFactory() = default;
 
     // Disable copy, allow move
@@ -39,7 +44,13 @@ class ConnectionFactory
     ConnectionFactory(ConnectionFactory&&) = default;
     ConnectionFactory& operator=(ConnectionFactory&&) = default;
 
-    Expected<std::unique_ptr<IConnection>, score::crypto::CryptoErrorCode> CreateConnection(std::string_view endpoint);
+    /// @brief Establishes or reuses the shared connection for an endpoint.
+    /// @param endpoint Service endpoint identifying the daemon.
+    /// @param timeout Bound for the open/close handshake; transport maximum when unset.
+    /// @return The shared connection, or the error that prevented establishment.
+    Expected<std::shared_ptr<IConnection>, score::crypto::CryptoErrorCode> EstablishConnection(
+        std::string_view endpoint,
+        std::optional<std::chrono::milliseconds> timeout = std::nullopt);
 };
 
 }  // namespace score::crypto::api::control_plane

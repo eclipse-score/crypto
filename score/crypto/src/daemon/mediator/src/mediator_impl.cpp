@@ -31,6 +31,7 @@
 #include "score/crypto/src/daemon/common/context_mode.hpp"
 #include "score/crypto/src/daemon/common/context_types.hpp"
 #include "score/crypto/src/daemon/common/daemon_error.hpp"
+#include "score/crypto/src/daemon/common/key_compatibility.hpp"
 #include "score/crypto/src/daemon/common/operation_names.hpp"
 #include "score/crypto/src/daemon/common/types.hpp"
 #include "score/crypto/src/daemon/config/inc/config.hpp"
@@ -90,9 +91,9 @@ control_plane::ControlResponse MediatorImpl::processRequest(control_plane::Contr
 {
     auto responseBuilder = control_plane::protocol::OperationResponseBuilder();
 
-    for (size_t idx = 0; idx < request.operation.operations.size(); ++idx)
+    for (size_t idx = 0; idx < request.operations.size(); ++idx)
     {
-        const auto& operation = request.operation.operations[idx];
+        const auto& operation = request.operations[idx];
 
         // Stop processing requests, once one fails. They may depend on each other
         if (!HandleSingleOperation(request, operation, responseBuilder))
@@ -104,14 +105,14 @@ control_plane::ControlResponse MediatorImpl::processRequest(control_plane::Contr
     }
 
     // Build response
-    auto opResponse = responseBuilder.build().value_or(control_plane::protocol::OperationResponse());
+    auto opResponse = responseBuilder.build().value_or(std::vector<control_plane::protocol::SingleOperationResponse>{});
 
     ControlResponse response;
     response.request_id = request.request_id;
-    response.operation = opResponse;
+    response.operations = opResponse;
 
     score::mw::log::LogVerbose() << "[SCORE_API_MED] Response operations: "
-                                 << static_cast<std::uint64_t>(opResponse.operations.size());
+                                 << static_cast<std::uint64_t>(opResponse.size());
 
     return response;
 }
@@ -259,6 +260,7 @@ MediatorImpl::BindAndAuthorizeKey(std::uint64_t client_id,
                                   std::uint64_t& key_node_id,
                                   const common::ProviderId& provider_id,
                                   std::string_view context_type,
+                                  const std::optional<AlgorithmDescriptor>& algorithm,
                                   const common::RequestParameters& params)
 {
     if (!m_km_service)
@@ -303,11 +305,43 @@ MediatorImpl::BindAndAuthorizeKey(std::uint64_t client_id,
         return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kKeyOperationNotPermitted);
     }
 
+    // The key must also fit the algorithm: an EC key on another curve, an AES
+    // key of another length, or a key labelled for another operation is
+    // refused here for every provider rather than left to each provider to
+    // notice. Only a KEY:MANAGEMENT context has no algorithm, and it binds no
+    // key (refused above).
+    //
+    // A key slot that is not loaded yet has no material size (0). Its label is
+    // checked now and the length of its material after binding.
+    const auto& key_algorithm = handle.value().algorithm;
+    const std::size_t pre_bind_key_size = handle.value().key_size;
+    if (!algorithm.has_value() || !common::IsKeyCompatible(algorithm.value(), key_algorithm, pre_bind_key_size))
+    {
+        score::mw::log::LogError() << "[SCORE_API_MED] ERROR - key does not fit the algorithm"
+                                   << " (algorithm=" << (algorithm.has_value() ? algorithm->name : "")
+                                   << ", key_algorithm=" << key_algorithm.name << ", key_node_id=" << key_node_id
+                                   << ")";
+        return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kIncompatibleKeyType);
+    }
+
     auto bind_res = m_km_service->BindKeyToContext(client_id, context_node_id, key_node_id, provider_id);
     if (!bind_res.has_value())
     {
         score::mw::log::LogError() << "[SCORE_API_MED] ERROR - key binding failed for key_node_id=" << key_node_id;
         return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kInvalidArgument);
+    }
+
+    if (pre_bind_key_size == 0U)
+    {
+        const auto& bound = bind_res.value().key_handler->GetHandle();
+        if (!common::IsKeyCompatible(algorithm.value(), bound.algorithm, bound.key_size))
+        {
+            score::mw::log::LogError() << "[SCORE_API_MED] ERROR - loaded key does not fit the algorithm"
+                                       << " (algorithm=" << algorithm->name
+                                       << ", key_algorithm=" << bound.algorithm.name << ", key_size=" << bound.key_size
+                                       << ", key_node_id=" << key_node_id << ")";
+            return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kIncompatibleKeyType);
+        }
     }
 
     key_node_id = static_cast<std::uint64_t>(bind_res.value().resolved_node_id);
@@ -566,8 +600,13 @@ bool MediatorImpl::HandleContextCreationOperation(const score::crypto::daemon::c
     key_management::IKeyHandler::Sptr bound_key_handler;
     if (has_key_binding)
     {
-        auto bind_res = BindAndAuthorizeKey(
-            client_id, context_node_id, key_node_id, provider->GetProviderId(), context_type, operation.parameters);
+        auto bind_res = BindAndAuthorizeKey(client_id,
+                                            context_node_id,
+                                            key_node_id,
+                                            provider->GetProviderId(),
+                                            context_type,
+                                            algorithm_descriptor,
+                                            operation.parameters);
         if (!bind_res.has_value())
         {
             const auto cleanup_result = m_data_manager->deleteNode(client_id, context_node_id);
@@ -703,7 +742,7 @@ bool MediatorImpl::HandleShmCreateObject(const control_plane::ControlRequest& re
     // param[3]: is_pool (0=bulk, 1=pool).
     const auto is_pool_param = operation.getParameter<std::uint64_t>(3);
     const bool is_pool = is_pool_param.has_value() && (is_pool_param.value() != 0U);
-    const std::uint32_t uid = control_plane::protocol::GetUidFromClientId(request.client_id);
+    const std::uint32_t uid = common::GetUidFromClientId(request.client_id);
 
     std::size_t size{};
     std::shared_ptr<data_plane::IShmFactory> factory_override{};
