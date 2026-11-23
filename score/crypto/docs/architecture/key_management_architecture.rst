@@ -341,16 +341,19 @@ Step 4 — Perform MAC operations
    by ``context_node_id`` → ``MacHandlerImpl::Execute(MAC_UPDATE, params)``.
 2. ``MacExecutor::Execute`` validates the stream transition
    (``IDLE → STREAM_INITIALIZED`` on first update; ``STREAM_INITIALIZED → STREAM_ACTIVE``
-   on subsequent updates) and calls ``MacHandlerImpl::UpdateMac(dataToMac)``.
-3. The handler extracts raw bytes via ``ExtractBufferData`` then calls
-   ``EVP_MAC_update(m_ctx, data, len)`` to feed data into the running HMAC.
+   on subsequent updates), resolves ``param[0]`` to a byte span and calls
+   ``OpenSslHmacHandler::UpdateMac(data)``.
+3. The handler calls ``EVP_MAC_update(m_ctx, data, len)`` to feed the chunk into the running HMAC.
 
 ``MAC_FINALIZE``:
 
-1. ``MacExecutor`` validates ``STREAM_INITIALIZED/ACTIVE → IDLE`` transition.
-2. ``OpenSslHmacHandler::FinalizeMac`` → ``EVP_MAC_final(m_ctx, output,
+1. ``MacExecutor`` validates ``STREAM_INITIALIZED/ACTIVE → IDLE`` transition,
+   resolves the tag buffer and rejects one smaller than ``GetMacSize()``.
+   An optional trailing chunk in ``param[1]`` is then fed through ``UpdateMac``.
+2. ``OpenSslHmacHandler::FinalizeMac(tag)`` → ``EVP_MAC_final(m_ctx, output,
    &hmac_len, buf_len)`` writes the 32-byte HMAC-SHA256 tag into the
-   client-provided shared-memory buffer.
+   client-provided shared-memory buffer and returns its length.
+3. ``MacExecutor`` returns that length to the client as ``param[0]``.
 
 Step 5 — Release resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

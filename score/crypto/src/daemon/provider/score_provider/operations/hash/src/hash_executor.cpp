@@ -25,6 +25,7 @@ using common::RequestParameters;
 using common::ResponseParameters;
 using common::StreamOperationState;
 using ::score::crypto::daemon::provider::handler::handler_utils::CheckAndGetSpan;
+using ::score::crypto::daemon::provider::handler::handler_utils::ToSizeResponse;
 using ::score::crypto::daemon::provider::handler::handler_utils::ValidateParameterCount;
 
 Expected<ResponseParameters, DaemonErrorCode> HashExecutor::Execute(ScoreHashHandler& handler,
@@ -143,7 +144,7 @@ Expected<ResponseParameters, DaemonErrorCode> HashExecutor::ExecuteFinalize(Scor
         return make_unexpected(outputSpan.error());
     }
 
-    return handler.FinalizeHash(outputSpan.value());
+    return ToSizeResponse(handler.FinalizeHash(outputSpan.value()));
 }
 
 Expected<ResponseParameters, DaemonErrorCode> HashExecutor::ExecuteSingleShot(ScoreHashHandler& handler,
@@ -167,7 +168,7 @@ Expected<ResponseParameters, DaemonErrorCode> HashExecutor::ExecuteSingleShot(Sc
         return make_unexpected(outputSpan.error());
     }
 
-    return handler.SingleShotHash(inputSpan.value(), outputSpan.value());
+    return ToSizeResponse(handler.SingleShotHash(inputSpan.value(), outputSpan.value()));
 }
 
 Expected<std::monostate, DaemonErrorCode> HashExecutor::ExecuteReset(ScoreHashHandler& handler,
@@ -189,7 +190,12 @@ Expected<ResponseParameters, DaemonErrorCode> HashExecutor::GetDigestSize(const 
     {
         return make_unexpected(countResult.error());
     }
-    return handler.GetDigestSize();
+    const std::size_t digestSize = handler.GetDigestSize();
+    if (digestSize == 0U)
+    {
+        return make_unexpected(DaemonErrorCode::kUnsupportedAlgorithm);
+    }
+    return ToSizeResponse(digestSize);
 }
 
 // static

@@ -24,6 +24,9 @@ using common::DaemonErrorCode;
 using common::RequestParameters;
 using common::ResponseParameters;
 using common::StreamOperationState;
+using ::score::crypto::daemon::provider::handler::handler_utils::CheckAndGetSpan;
+using ::score::crypto::daemon::provider::handler::handler_utils::ToSizeResponse;
+using ::score::crypto::daemon::provider::handler::handler_utils::ValidateParameterCount;
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -55,10 +58,9 @@ Expected<ResponseParameters, DaemonErrorCode> MacExecutor::Execute(ScoreMacHandl
             return make_unexpected(DaemonErrorCode::kOperationInProgress);
         }
         auto result = ExecuteSingleShot(handler, request);
-        if (result.has_value())
-        {
-            handler.SetOperationState(StreamOperationState::IDLE);
-        }
+        // A single-shot always ends the stream, so the context is left reusable
+        // even when the operation failed part-way through.
+        handler.SetOperationState(StreamOperationState::IDLE);
         return result;
     }
 
@@ -126,102 +128,140 @@ Expected<ResponseParameters, DaemonErrorCode> MacExecutor::Execute(ScoreMacHandl
 
 Expected<std::monostate, DaemonErrorCode> MacExecutor::ExecuteInit(ScoreMacHandler& handler, RequestParameters& request)
 {
-    std::optional<common::RequestParameter> initialData;
+    // request[0] = optional IV
+    if (request.size() > 1U)
+    {
+        return make_unexpected(DaemonErrorCode::kInvalidArgument);
+    }
+
+    std::optional<score::cpp::span<const std::uint8_t>> iv;
     if (!request.empty())
     {
-        initialData.emplace(request[0]);
+        const auto ivSpan = CheckAndGetSpan<const std::uint8_t>(request[0]);
+        if (!ivSpan.has_value())
+        {
+            return make_unexpected(ivSpan.error());
+        }
+        iv.emplace(ivSpan.value());
     }
-    return handler.InitMac(initialData);
+    return handler.InitMac(iv);
 }
 
 Expected<std::monostate, DaemonErrorCode> MacExecutor::ExecuteUpdate(ScoreMacHandler& handler,
                                                                      RequestParameters& request)
 {
-    if (request.empty())
+    // request[0] = data chunk
+    const auto countResult = ValidateParameterCount(request, 1U);
+    if (!countResult.has_value())
     {
-        return make_unexpected(DaemonErrorCode::kInsufficientParameters);
+        return make_unexpected(countResult.error());
     }
-    return handler.UpdateMac(request[0]);
+
+    // An empty chunk is valid input, and the MAC of an empty message is defined.
+    const auto dataSpan = CheckAndGetSpan<const std::uint8_t>(request[0], true);
+    if (!dataSpan.has_value())
+    {
+        return make_unexpected(dataSpan.error());
+    }
+    return handler.UpdateMac(dataSpan.value());
 }
 
 Expected<ResponseParameters, DaemonErrorCode> MacExecutor::ExecuteFinalize(ScoreMacHandler& handler,
                                                                            RequestParameters& request)
 {
-    std::optional<common::RequestParameter> output;
-    if (!request.empty())
+    // request[0] = tag output buffer, request[1] = optional final data chunk
+    if (request.empty())
     {
-        if (auto* buf = std::get_if<score::cpp::span<uint8_t>>(&request[0]))
+        return make_unexpected(DaemonErrorCode::kInsufficientParameters);
+    }
+    if (request.size() > 2U)
+    {
+        return make_unexpected(DaemonErrorCode::kInvalidArgument);
+    }
+
+    const auto tagSpan = CheckAndGetSpan<std::uint8_t>(request[0]);
+    if (!tagSpan.has_value())
+    {
+        return make_unexpected(tagSpan.error());
+    }
+    // Rejected before the trailing chunk enters the stream, so a retry with a larger buffer sees the same input.
+    if (tagSpan.value().size() < handler.GetMacSize())
+    {
+        return make_unexpected(DaemonErrorCode::kInsufficientBufferSize);
+    }
+
+    if (request.size() > 1U)
+    {
+        const auto finalData = CheckAndGetSpan<const std::uint8_t>(request[1], true);
+        if (!finalData.has_value())
         {
-            output.emplace(*buf);
+            return make_unexpected(finalData.error());
+        }
+        auto update = handler.UpdateMac(finalData.value());
+        if (!update.has_value())
+        {
+            return make_unexpected(update.error());
         }
     }
 
-    std::optional<common::RequestParameter> finalData;
-    if (request.size() > 1U)
-    {
-        finalData.emplace(request[1]);
-    }
-
-    return handler.FinalizeMac(output, finalData);
+    return ToSizeResponse(handler.FinalizeMac(tagSpan.value()));
 }
 
 Expected<ResponseParameters, DaemonErrorCode> MacExecutor::ExecuteVerify(ScoreMacHandler& handler,
                                                                          RequestParameters& request)
 {
-    if (request.empty())
+    // request[0] = expected tag
+    const auto countResult = ValidateParameterCount(request, 1U);
+    if (!countResult.has_value())
     {
-        return make_unexpected(DaemonErrorCode::kInsufficientParameters);
+        return make_unexpected(countResult.error());
     }
 
-    auto res = handler.VerifyMac(request[0]);
-    if (!res.has_value())
+    const auto tagSpan = CheckAndGetSpan<const std::uint8_t>(request[0]);
+    if (!tagSpan.has_value())
     {
-        return make_unexpected(res.error());
+        return make_unexpected(tagSpan.error());
+    }
+
+    auto matches = handler.VerifyMac(tagSpan.value());
+    if (!matches.has_value())
+    {
+        return make_unexpected(matches.error());
     }
 
     ResponseParameters response;
-    response.push_back(res.value());
+    response.push_back(matches.value());
     return response;
 }
 
 Expected<ResponseParameters, DaemonErrorCode> MacExecutor::ExecuteSingleShot(ScoreMacHandler& handler,
                                                                              RequestParameters& request)
 {
-    if (request.empty())
+    // request[0] = data, request[1] = tag output buffer
+    const auto countResult = ValidateParameterCount(request, 2U);
+    if (!countResult.has_value())
     {
-        return make_unexpected(DaemonErrorCode::kInsufficientParameters);
+        return make_unexpected(countResult.error());
     }
 
-    std::optional<common::RequestParameter> output;
-    if (request.size() > 1U)
+    const auto dataSpan = CheckAndGetSpan<const std::uint8_t>(request[0], true);
+    if (!dataSpan.has_value())
     {
-        if (auto* buf = std::get_if<score::cpp::span<uint8_t>>(&request[1]))
-        {
-            output.emplace(*buf);
-        }
+        return make_unexpected(dataSpan.error());
+    }
+    const auto tagSpan = CheckAndGetSpan<std::uint8_t>(request[1]);
+    if (!tagSpan.has_value())
+    {
+        return make_unexpected(tagSpan.error());
     }
 
-    auto init = handler.InitMac(std::nullopt);
-    if (!init.has_value())
-    {
-        return make_unexpected(init.error());
-    }
-
-    auto up = handler.UpdateMac(request[0]);
-    if (!up.has_value())
-    {
-        return make_unexpected(up.error());
-    }
-
-    return handler.FinalizeMac(output, std::nullopt);
+    return ToSizeResponse(handler.SingleShotMac(dataSpan.value(), tagSpan.value()));
 }
 
 Expected<ResponseParameters, DaemonErrorCode> MacExecutor::GetMacSize(const ScoreMacHandler& handler,
                                                                       RequestParameters& /*request*/)
 {
-    ResponseParameters response;
-    response.push_back(static_cast<std::uint64_t>(handler.GetMacSize()));
-    return response;
+    return ToSizeResponse(handler.GetMacSize());
 }
 
 Expected<std::monostate, DaemonErrorCode> MacExecutor::ExecuteReset(ScoreMacHandler& handler,

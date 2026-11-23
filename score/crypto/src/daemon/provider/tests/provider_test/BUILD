@@ -54,6 +54,25 @@ cc_test(
 )
 
 cc_test(
+    name = "test_provider_mac",
+    srcs = ["test_provider_mac.cpp"],
+    target_compatible_with = select({
+        "//score/crypto/src/backend:openssl_backend_active": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/daemon/key_management:key_management_headers",
+        "//score/crypto/src/daemon/provider:provider_headers",
+        "//score/crypto/src/daemon/provider/handler:crypto_handler_factory_headers",
+        "//score/crypto/src/daemon/provider/handler:mac_handler_operations",
+        "//score/crypto/src/daemon/provider/score_provider/openssl:provider_openssl_library",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "test_pkcs11_provider",
     srcs = ["test_pkcs11_provider.cpp"],
     data = ["//score/tests/test_vectors/hash:hash_test_vectors"],

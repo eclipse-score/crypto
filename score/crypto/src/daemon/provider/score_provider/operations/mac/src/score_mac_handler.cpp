@@ -55,24 +55,28 @@ std::size_t ScoreMacHandler::GetMacSize() const noexcept
 }
 
 Expected<std::monostate, DaemonErrorCode> ScoreMacHandler::InitMac(
-    const std::optional<common::RequestParameter> /*initialDataOrIV*/)
+    std::optional<score::cpp::span<const std::uint8_t>> /*iv*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<std::monostate, DaemonErrorCode> ScoreMacHandler::UpdateMac(const common::RequestParameter& /*dataToMac*/)
+Expected<std::monostate, DaemonErrorCode> ScoreMacHandler::UpdateMac(score::cpp::span<const std::uint8_t> /*data*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<ResponseParameters, DaemonErrorCode> ScoreMacHandler::FinalizeMac(
-    std::optional<common::RequestParameter> /*macOutput*/,
-    const std::optional<common::RequestParameter> /*finalDataToMac*/)
+Expected<std::size_t, DaemonErrorCode> ScoreMacHandler::FinalizeMac(score::cpp::span<std::uint8_t> /*tag*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<bool, DaemonErrorCode> ScoreMacHandler::VerifyMac(const common::RequestParameter& /*expectedTag*/)
+Expected<bool, DaemonErrorCode> ScoreMacHandler::VerifyMac(score::cpp::span<const std::uint8_t> /*expected_tag*/)
+{
+    return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
+}
+
+Expected<std::size_t, DaemonErrorCode> ScoreMacHandler::SingleShotMac(score::cpp::span<const std::uint8_t> /*data*/,
+                                                                      score::cpp::span<std::uint8_t> /*tag*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }

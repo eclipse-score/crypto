@@ -374,10 +374,11 @@ package "Provider Handler" <<Rectangle>> #FCE4EC {
         # m_state : StreamOperationState
         --
         + GetMacSize() : size_t
-        + InitMac(initialDataOrIV) : Expected<monostate>
-        + UpdateMac(request) : Expected<monostate>
-        + FinalizeMac(output, finalData) : Expected<ResponseParameters>
-        + VerifyMac(expectedTag) : Expected<bool>
+        + InitMac(optional<iv>) : Expected<monostate>
+        + UpdateMac(data) : Expected<monostate>
+        + FinalizeMac(tag) : Expected<size_t>
+        + VerifyMac(expected_tag) : Expected<bool>
+        + SingleShotMac(data, tag) : Expected<size_t>
     }
 
     class OpenSslHmacHandler <<OpenSSL>> {
@@ -390,10 +391,11 @@ package "Provider Handler" <<Rectangle>> #FCE4EC {
         .. downcasts bound_key_handler → OpenSslKeyHandler ..
         .. calls GetRawKeyBytes() + EVP_MAC_init ..
         + Execute(opId, request) : Expected<ResponseParameters>
-        + UpdateMac(request) : Expected<monostate>
-        + FinalizeMac(output, finalData) : Expected<ResponseParameters>
-        + VerifyMac(expectedTag) : Expected<bool>
-        + InitMac(initialDataOrIV) : Expected<monostate>
+        + UpdateMac(data) : Expected<monostate>
+        + FinalizeMac(tag) : Expected<size_t>
+        + VerifyMac(expected_tag) : Expected<bool>
+        + SingleShotMac(data, tag) : Expected<size_t>
+        + InitMac(optional<iv>) : Expected<monostate>
         + {static} IsAlgorithmSupported(const AlgorithmDescriptor&) : bool
     }
 }

@@ -51,11 +51,9 @@ class OpenSslHashHandler final
     Expected<std::monostate, common::DaemonErrorCode> InitHash() override;
     Expected<std::monostate, common::DaemonErrorCode> UpdateHash(
         score::cpp::span<const std::uint8_t> dataToHash) override;
-    Expected<common::ResponseParameters, common::DaemonErrorCode> FinalizeHash(
-        score::cpp::span<std::uint8_t> hashOutput) override;
-    Expected<common::ResponseParameters, common::DaemonErrorCode> SingleShotHash(
-        score::cpp::span<const std::uint8_t> dataToHash,
-        score::cpp::span<std::uint8_t> outputHash) override;
+    Expected<std::size_t, common::DaemonErrorCode> FinalizeHash(score::cpp::span<std::uint8_t> hashOutput) override;
+    Expected<std::size_t, common::DaemonErrorCode> SingleShotHash(score::cpp::span<const std::uint8_t> dataToHash,
+                                                                  score::cpp::span<std::uint8_t> outputHash) override;
 
     /// @brief Check if the given algorithm is supported by this handler.
     [[nodiscard]] static bool IsAlgorithmSupported(const AlgorithmDescriptor& algorithm) noexcept;

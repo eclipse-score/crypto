@@ -42,6 +42,18 @@ Expected<std::monostate, score::crypto::daemon::common::DaemonErrorCode> Validat
     return std::monostate{};
 }
 
+Expected<common::ResponseParameters, score::crypto::daemon::common::DaemonErrorCode> ToSizeResponse(
+    const Expected<std::size_t, score::crypto::daemon::common::DaemonErrorCode>& size)
+{
+    if (!size.has_value())
+    {
+        return make_unexpected(size.error());
+    }
+    common::ResponseParameters response;
+    response.push_back(static_cast<std::uint64_t>(size.value()));
+    return response;
+}
+
 Expected<std::monostate, score::crypto::daemon::common::DaemonErrorCode>
 ExtractOutputBufferData(common::RequestParameter& userData, uint8_t*& buffer, size_t& size) noexcept
 {

@@ -21,6 +21,7 @@
 #include "score/crypto/src/daemon/common/types.hpp"
 #include "score/crypto/src/daemon/provider/handler/i_handler.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string_view>
@@ -99,17 +100,20 @@ class ScoreHashHandler : public handler::Handler
     [[nodiscard]] virtual Expected<std::monostate, common::DaemonErrorCode> UpdateHash(
         score::cpp::span<const std::uint8_t> dataToHash);
 
-    /// @brief Finalize the hash and produce the digest.
-    [[nodiscard]] virtual Expected<common::ResponseParameters, common::DaemonErrorCode> FinalizeHash(
+    /// @brief Finalize the hash and write the digest into the caller's buffer.
+    /// @return Bytes written.
+    [[nodiscard]] virtual Expected<std::size_t, common::DaemonErrorCode> FinalizeHash(
         score::cpp::span<std::uint8_t> hashOutput);
 
-    /// @brief Perform single-shot hash without streaming.
-    [[nodiscard]] virtual Expected<common::ResponseParameters, common::DaemonErrorCode> SingleShotHash(
+    /// @brief Hash @p dataToHash in one call, without a streaming sequence.
+    /// @return Bytes written.
+    [[nodiscard]] virtual Expected<std::size_t, common::DaemonErrorCode> SingleShotHash(
         score::cpp::span<const std::uint8_t> dataToHash,
         score::cpp::span<std::uint8_t> outputHash);
 
     /// @brief Get the digest size for the current algorithm.
-    [[nodiscard]] virtual Expected<common::ResponseParameters, common::DaemonErrorCode> GetDigestSize() const;
+    /// @return 0 when the bound algorithm is not a hash.
+    [[nodiscard]] virtual std::size_t GetDigestSize() const noexcept;
 
   protected:
     AlgorithmDescriptor m_algorithm;
