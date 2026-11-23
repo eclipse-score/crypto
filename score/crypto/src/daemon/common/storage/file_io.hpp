@@ -87,8 +87,8 @@ using FileWriter = std::function<score::crypto::Expected<std::monostate, DaemonE
 /// process's user or by root and must not be writable by its group or by others; otherwise
 /// nothing is erased. The directories above it are not checked, so the deployment must keep
 /// them protected from untrusted users. Leftover temporary files of an interrupted
-/// CreateSecretFile for the same name (<name>.tmp.*) are erased too. Before a name is removed it is checked to still refer to
-/// the file just overwritten, so an entry swapped in meanwhile is never removed.
+/// CreateSecretFile for the same name (<name>.tmp.*) are erased too. Before a name is removed it is checked to still
+/// refer to the file just overwritten, so an entry swapped in meanwhile is never removed.
 ///
 /// Idempotent: returns success if the file does not exist, and still flushes the directory
 /// then, so a retry after a failed directory flush completes the earlier removal. Only a
