@@ -54,6 +54,9 @@ class FileBackedSlotHandlerClearSlotTest : public ::testing::Test
                         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::error_code error;
         ASSERT_TRUE(std::filesystem::create_directories(m_dir, error)) << error.message();
+        // Owner-only whatever the umask: a group-writable key directory is refused.
+        std::filesystem::permissions(m_dir, std::filesystem::perms::owner_all, error);
+        ASSERT_FALSE(error) << error.message();
         m_key_path = m_dir / "slot.key";
         m_descriptor_path = m_dir / "slot.kv";
 

@@ -84,9 +84,10 @@ using FileWriter = std::function<score::crypto::Expected<std::monostate, DaemonE
 ///
 /// The directory is opened once and every step works relative to that descriptor, so the
 /// path cannot be redirected while the erase runs. The directory must be owned by this
-/// process's user or by root and must not be writable by other users; otherwise nothing is
-/// erased. Leftover temporary files of an interrupted CreateSecretFile for the same name
-/// (<name>.tmp.*) are erased too. Before a name is removed it is checked to still refer to
+/// process's user or by root and must not be writable by its group or by others; otherwise
+/// nothing is erased. The directories above it are not checked, so the deployment must keep
+/// them protected from untrusted users. Leftover temporary files of an interrupted
+/// CreateSecretFile for the same name (<name>.tmp.*) are erased too. Before a name is removed it is checked to still refer to
 /// the file just overwritten, so an entry swapped in meanwhile is never removed.
 ///
 /// Idempotent: returns success if the file does not exist, and still flushes the directory
@@ -117,7 +118,8 @@ using FileWriter = std::function<score::crypto::Expected<std::monostate, DaemonE
 /// link(), which fails atomically when @p path already exists, so an occupied key file is never
 /// replaced. Finally the temporary name is removed and the directory is flushed. All steps work
 /// relative to one descriptor of the directory, which must be owned by this process's user or by
-/// root and not writable by other users.
+/// root and not writable by its group or by others. As for SecureEraseFile, the directories
+/// above an existing key directory are not checked.
 ///
 /// Missing parent directories are created with mode 0700, and the directory that received each
 /// new one is flushed, so the whole chain is durable. The temporary name carries the process id

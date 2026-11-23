@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <iterator>
 #include <string>
 #include <system_error>
@@ -103,6 +104,9 @@ class SecureEraseFileTest : public ::testing::Test
                         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::error_code error;
         ASSERT_TRUE(std::filesystem::create_directories(m_dir, error)) << error.message();
+        // Owner-only whatever the umask: a group-writable key directory is refused.
+        std::filesystem::permissions(m_dir, std::filesystem::perms::owner_all, error);
+        ASSERT_FALSE(error) << error.message();
     }
 
     void TearDown() override
@@ -339,6 +343,31 @@ TEST_F(SecureEraseFileTest, RejectsDirectoryWritableByOthers)
     EXPECT_EQ(ReadAll(path), data);
 }
 
+// The group is not trusted either: a member could move the key away before the erase opens it,
+// and the erase would then report success for a file that still exists under another name.
+TEST_F(SecureEraseFileTest, RejectsDirectoryWritableByGroup)
+{
+    const auto path = PathOf("key");
+    const std::vector<char> data(16U, '\x5A');
+    WriteAll(path, data);
+
+    for (const mode_t mode : {mode_t{0770}, mode_t{0775}})
+    {
+        ASSERT_EQ(::chmod(m_dir.c_str(), mode), 0);
+
+        const auto result = SecureEraseFile(path.string(), kMaxSize);
+        // Nor may a missing key count as erased there.
+        const auto missing = SecureEraseFile(PathOf("missing").string(), kMaxSize);
+
+        ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU), 0);
+        ASSERT_FALSE(result.has_value()) << std::oct << mode;
+        EXPECT_EQ(result.error(), DaemonErrorCode::kInvalidArgument) << std::oct << mode;
+        ASSERT_FALSE(missing.has_value()) << std::oct << mode;
+        EXPECT_EQ(missing.error(), DaemonErrorCode::kInvalidArgument) << std::oct << mode;
+        EXPECT_EQ(ReadAll(path), data) << std::oct << mode;
+    }
+}
+
 // CreateSecretFile shares the fixture: a private directory under TEST_TMPDIR.
 using CreateSecretFileTest = SecureEraseFileTest;
 
@@ -448,6 +477,21 @@ TEST_F(CreateSecretFileTest, RejectsDirectoryWritableByOthers)
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), DaemonErrorCode::kInvalidArgument);
     EXPECT_FALSE(std::filesystem::exists(PathOf("key")));
+}
+
+TEST_F(CreateSecretFileTest, RejectsDirectoryWritableByGroup)
+{
+    for (const mode_t mode : {mode_t{0770}, mode_t{0775}})
+    {
+        ASSERT_EQ(::chmod(m_dir.c_str(), mode), 0);
+
+        const auto result = CreateSecretFile(PathOf("key").string(), AsSpan(std::vector<std::uint8_t>(16U, 0x5AU)));
+
+        ASSERT_EQ(::chmod(m_dir.c_str(), S_IRWXU), 0);
+        ASSERT_FALSE(result.has_value()) << std::oct << mode;
+        EXPECT_EQ(result.error(), DaemonErrorCode::kInvalidArgument) << std::oct << mode;
+        EXPECT_TRUE(std::filesystem::is_empty(m_dir)) << std::oct << mode;
+    }
 }
 
 TEST_F(CreateSecretFileTest, ExistingFileIsNeverReplaced)

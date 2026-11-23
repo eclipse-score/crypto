@@ -204,7 +204,7 @@ OpenedDirectory OpenDirectory(const std::string& directory, bool create)
 }
 
 /// A key directory must be one nobody else can change: owned by this process's user or by
-/// root, and not writable by other users. Otherwise another user could plant or swap the
+/// root, and writable by neither its group nor others. Otherwise another user could plant or swap the
 /// entries this code overwrites and removes.
 bool IsTrustedDirectory(int directory_fd) noexcept
 {
@@ -214,7 +214,7 @@ bool IsTrustedDirectory(int directory_fd) noexcept
         return false;
     }
     const bool owned = (status.st_uid == ::geteuid()) || (status.st_uid == 0U);
-    return S_ISDIR(status.st_mode) && owned && ((status.st_mode & S_IWOTH) == 0U);
+    return S_ISDIR(status.st_mode) && owned && ((status.st_mode & (S_IWGRP | S_IWOTH)) == 0U);
 }
 
 /// Write zeros over the first @p size bytes of the open file @p fd.
@@ -591,7 +591,7 @@ score::crypto::Expected<std::monostate, DaemonErrorCode> SecureEraseFile(const s
     if (!IsTrustedDirectory(directory.fd.Get()))
     {
         return StepFailed(kOperation,
-                          "directory check (not owned by this user or root, or writable by others)",
+                          "directory check (not owned by this user or root, or writable by group or others)",
                           DaemonErrorCode::kInvalidArgument,
                           kNoErrno);
     }
@@ -639,7 +639,7 @@ score::crypto::Expected<std::monostate, DaemonErrorCode> CreateSecretFile(const 
     if (!IsTrustedDirectory(dir_fd))
     {
         return StepFailed(kOperation,
-                          "directory check (not owned by this user or root, or writable by others)",
+                          "directory check (not owned by this user or root, or writable by group or others)",
                           DaemonErrorCode::kInvalidArgument,
                           kNoErrno);
     }

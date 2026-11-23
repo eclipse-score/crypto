@@ -422,11 +422,16 @@ Key material is wiped, not just dropped, wherever the daemon lets go of it:
 - **Key directory**: both operations open the key's directory once and work
   relative to that descriptor (``openat``, ``linkat``, ``unlinkat``), so the
   path cannot be redirected while they run. The directory must be owned by
-  the daemon's user or by root and must not be writable by other users;
+  the daemon's user or by root and must not be writable by its group or by
+  others (mode ``0770`` and ``0775`` are refused as well as ``0777``);
   otherwise the operation is refused. Before a name is removed it is checked
   to still refer to the file just overwritten. Directory components above it
   may be symbolic links set up by the deployment, which is why the trust check
-  applies to the directory actually reached. Concurrent operations on the
+  applies to the directory actually reached. The directories above it are not
+  checked: whoever can write to one of them could move the whole key directory
+  away, and an erase would then find no key and report success. The deployment
+  must therefore keep every directory above a key directory writable by
+  trusted users only. Concurrent operations on the
   same slot are settled by the file system: ``link()`` lets only one store
   publish, and an erase never removes an entry it did not overwrite.
 
