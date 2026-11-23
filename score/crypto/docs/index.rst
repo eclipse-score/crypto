@@ -12,7 +12,7 @@
    # SPDX-License-Identifier: Apache-2.0
    # *******************************************************************************
 
-.. _component_template:
+.. _crypto_component:
 
 Crypto
 #######
