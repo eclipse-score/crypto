@@ -116,6 +116,31 @@ class TestCryptoDaemon:
         assert daemon.terminate(timeout=3), "crypto_daemon did not terminate gracefully"
         log_contents = daemon.get_log_contents()
         logger.info(f"crypto_daemon log contents:\n{log_contents}")
+        assert daemon.exit_code() == 0, f"crypto_daemon did not exit cleanly on SIGTERM:\n{log_contents}"
+
+    def test_daemon_refuses_to_start_with_invalid_config(
+        self, target: Target, target_os: str, install_dir: str
+    ):
+        """An unparsable config file stops startup with a non-zero exit before the server opens its endpoint."""
+        invalid_config = "/tmp/invalid_crypto_config.bin"
+        exit_code, output = target.execute(f"echo invalid > {invalid_config}")
+        assert exit_code == 0, f"Failed to write {invalid_config}: {output.decode()}"
+
+        daemon = ProcessRunner(
+            target,
+            Path(f"{install_dir}/bin/crypto_daemon"),
+            Path("/tmp/crypto_daemon_invalid_config.log"),
+            target_os=target_os,
+            env={
+                "CRYPTO_CONFIG_FILE": invalid_config,
+                "MW_LOG_CONFIG_FILE": f"{install_dir}/etc/logging.json",
+                "LD_LIBRARY_PATH": f"{install_dir}/lib:$LD_LIBRARY_PATH",
+            },
+        )
+        exit_code = daemon.run()
+        log = daemon.get_log_contents()
+        logger.info(f"crypto_daemon (invalid config) output:\n{log}")
+        assert exit_code != 0, f"crypto_daemon started with an invalid config:\n{log}"
 
     def test_score_api_hash(self, target: Target, target_os: str, install_dir: str):
         """Test SCORE HASH API."""
