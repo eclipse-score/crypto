@@ -1,0 +1,165 @@
+' *******************************************************************************
+' Copyright (c) 2026 Contributors to the Eclipse Foundation
+'
+' See the NOTICE file(s) distributed with this work for additional
+' information regarding copyright ownership.
+'
+' This program and the accompanying materials are made available under the
+' terms of the Apache License Version 2.0 which is available at
+' https://www.apache.org/licenses/LICENSE-2.0
+'
+' SPDX-License-Identifier: Apache-2.0
+' *******************************************************************************
+
+@startuml csr_signing_key_reference
+title CSR Signing: Bound Key with Eager / Batch / Standalone DER Input
+hide footbox
+autonumber
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowColor #46535E
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 260
+skinparam sequence {
+  LifeLineBorderColor #94A3B8
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #596B78
+  ParticipantFontColor #20313D
+  ActorBackgroundColor #FFFFFF
+  ActorBorderColor #596B78
+  GroupBorderColor #596B78
+  NoteBackgroundColor #FFF9DC
+  NoteBorderColor #C4A15C
+}
+
+actor Application as App
+box "Client process" #E8F1FF
+  participant "ICryptoContext\nclient factory" as Factory
+  participant "ICsrGenerationContext\nclient proxy" as CsrClient
+end box
+box "Crypto daemon" #F4F7F9
+  participant "Mediator\nselection and assembly" as Daemon
+  participant "KeyManagementService" as Keys
+  participant "Provider / CSR handler\nexisting OpenSSL implementation" as Provider
+  participant "CsrProcessingExecutor\nbackend-independent RPC contract" as Executor
+  participant "ICsrProcessor\nOpenSSL adapter to tested native helper" as Processor
+  participant "wire::Decode\nowned input snapshot" as DerWire
+  participant "PopulateRequestFromDer\nstrict Name / Extensions" as DerInput
+end box
+
+group 1. Obtain a private-key reference
+  App -> Factory : ResolveResource(configured_name, kKeySlot)
+  Factory -> Daemon : RESOLVE_RESOURCE
+  Daemon -> Keys : resolve configured slot for this client
+  Keys --> Daemon : client-scoped key-slot node
+  Daemon --> Factory : resolved resource handle
+  Factory --> App : CryptoResourceId key_ref
+  note over App, Factory
+    Alternatively, use an existing kKey reference returned
+    by key generation or loading on this connection.
+    The application holds a handle, not private-key bytes.
+  end note
+end
+
+group 2. Bind that key when creating the CSR context
+  App -> App : config.SetKey(key_ref)\n.SetAlgorithm(signature_algorithm)
+  App -> Factory : CreateCsrGenerationContext(config)
+  Factory -> Daemon : CTX_CREATE(CSR_GENERATION, algorithm, ...)\nparameter[3] = key_ref.id
+  Daemon -> Keys : ResolveTargetProvider(client, preference, key_ref.id)
+  Keys --> Daemon : key-compatible provider
+  Daemon -> Provider : create CSR handler for signature algorithm
+  Provider --> Daemon : uninitialized handler
+  Daemon -> Keys : BindAndAuthorize(client, context_id, key_ref.id,\nprovider, permission = kSign, algorithm)
+  note right of Keys
+    Check ownership, signing permission,
+    algorithm and provider compatibility.
+    Load/share a slot key if needed.
+    Retain a context-owned key reference.
+  end note
+  Keys --> Daemon : bound key handler + resolved key node
+  Daemon -> Provider : InitializeContext(bound_key_handler, context_id, ...)
+  Provider --> Daemon : initialized
+  Daemon --> Factory : context_id
+  Factory -> CsrClient : construct proxy with context_id and config
+  CsrClient --> Factory : created proxy
+  Factory --> App : CSR context
+end
+
+group 3. Choose input preparation; processing never uses the bound key
+alt [E] Eager setters
+  App -> CsrClient : SetSubjectDn(...) / optional extension setters
+  loop Existing helper / validation requests as needed
+  CsrClient -> Daemon : CSR_PROCESS on this same context_id\nexisting readable / writable SHM spans
+  Daemon -> Provider : authenticate context ownership and forward
+  Provider -> Executor : own context's Execute(spans)
+  Executor -> Executor : validate spans; wire::Decode\nreject Generate and GenerateFromDer
+  Executor -> Processor : Process(owned Document)
+  Processor --> Executor : processed Document / mapped daemon error
+  Executor -> Executor : wire::Encode; capacity / response checks\nthen copy output bytes
+  Executor --> Provider : SHM output + one uint64 byte count
+  Provider --> Daemon : processing response
+  Daemon --> CsrClient : byte count
+  end
+  CsrClient -> CsrClient : commit accepted setter values
+  CsrClient --> App : accepted setter values
+else [B] ConfigureBatch: one whole-request validation IPC
+  App -> CsrClient : ConfigureBatch(batch)
+  CsrClient -> CsrClient : collect all field descriptions locally
+  CsrClient -> Daemon : CSR_PROCESS on same generation context_id\nSCR1 ValidateBatch + all fields; SHM buffers
+  Daemon -> Provider : authenticate ownership and forward
+  Provider -> Executor : own context's Execute(spans)
+  Executor -> Executor : span / wire checks; reject both generation actions
+  Executor -> Processor : Process(owned ValidateBatch Document)
+  Processor --> Executor : complete normalized Document / mapped error
+  Executor -> Executor : on success: encode / capacity / response checks\nthen output copy
+  Executor --> Provider : SCR1 + written count / error
+  Provider --> Daemon : processing response
+  Daemon --> CsrClient : response
+  alt Successful, complete and well-formed response
+    CsrClient -> CsrClient : atomically replace snapshot; clear eager SAN cache
+    CsrClient --> App : accepted; separate Generate() still required
+  else Rejected batch or malformed response
+    CsrClient -> CsrClient : preserve previous snapshot
+    CsrClient --> App : error; no partial commit
+  end
+else [D] Standalone DER input
+  App -> App : prepare subject_dn_der and optional extensions_der\nskip all processing / setter calls
+end
+end
+
+opt 4. Application explicitly requests signing using the already-bound key
+alt [G] Current accepted eager / batch snapshot
+  App -> CsrClient : Generate() (separate from ConfigureBatch)
+  CsrClient -> Daemon : CSR_GENERATE_NATIVE on context_id\nCSR input + output buffer; no new key selection
+else [D] One-operation DER generation
+  App -> CsrClient : GenerateFromDer(subject_dn_der, extensions_der)
+  CsrClient -> CsrClient : bounds / serialization only\nno DER parsing or builder mutation
+  CsrClient -> Daemon : SAME CSR_GENERATE_NATIVE on context_id\nSCR1 GenerateFromDer=17 + DER fields; SHM buffers
+end
+  Daemon -> Provider : forward operation to bound context handler
+  Provider -> Provider : create operation-local X509_REQ with bound public key
+  alt [D] Strict standalone DER ingress
+    Provider -[#B45309]> DerWire : D1: Decode(input); verify owned wire snapshot
+    DerWire --[#B45309]> Provider : D1r: verified DER-only Document
+    Provider -[#B45309]> DerInput : D2: validate both structures, then populate request
+    DerInput --[#B45309]> Provider : D2r: populated fields
+  else [G] Structured input
+    Provider -> Provider : decode / revalidate snapshot\nencode extensions with bound SPKI; populate request
+  end
+  Provider -> Provider : after successful validation: sign with bound key\nverify signature; encode DER; check capacity\nallocate response, then publish output
+  Provider --> Daemon : signed CSR DER in output buffer + byte count
+  Daemon --> CsrClient : written-byte count
+  CsrClient --> App : ICsrExport containing signed CSR DER
+end
+
+note over App, Provider
+  The key reference is passed at context creation, not embedded in PKCS#10.
+  PKCS#10 carries the public key and signature, never private-key bytes.
+  A different key or algorithm requires a new CSR context.
+  This signing operation does not use CSR_PROCESS or a generic hardware signer.
+  Batch validation is not authorization for later signing; Generate revalidates.
+  Failed batches never trigger signing; a later explicit Generate uses the last accepted snapshot.
+  Generation shows success: validation errors return immediately without signing or publishing output.
+  DER generation inherits no builder state and needs no standalone processing context.
+end note
+@enduml
