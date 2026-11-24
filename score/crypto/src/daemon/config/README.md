@@ -37,6 +37,7 @@ Goals
 5. Cross Module accessibility. Middleware processes may access Keys using the same ``AppKeySlotMapping`` which applications also use, why do we need a seperate element ?. For Private Key mapped to certificate, added ``private_key_slot_name`` under ``CertSlotEntry``.
 6. Absolute and relative paths for key and certs : Added, however this leaves scope for misconfiguration which has to be caught during parsing.
 7. Enforcing common interface for additonal schema fbs files used  schema file added for PKCS11 backend : What is the rationale behind it ?
+   Note : Currently keyslot holds algorithm.
 
 
 Goals of Config Parser

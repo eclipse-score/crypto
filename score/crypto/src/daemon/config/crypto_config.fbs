@@ -22,6 +22,16 @@ namespace score.crypto.daemon.config.keyslot;
 // Key slot configuration (existing)
 // ---------------------------------------------------------------------------
 
+/// Lifecycle metadata of a key slot
+table KeyLifecycleMetadata {
+  /// UIDs permitted to export the key material; empty = export not allowed
+  allowed_export_UIDs: [uint32];
+  /// Maximum number of updates (writes/generations) allowed; 0 = unlimited
+  max_updates: uint32 = 0;
+  /// Maximum number of usages (cryptographic operations) allowed; 0 = unlimited
+  max_usages: uint64 = 0;
+}
+
 /// Single key slot definition from the configuration source
 /// Mirrors KeyConfig::KeySlotEntry structure
 table KeySlotEntry {
@@ -41,6 +51,8 @@ table KeySlotEntry {
   deployment_path: string (required);
   /// Format of the deployment descriptor (default "kv").
   deployment_format: string (required);
+  /// Optional lifecycle metadata; unset applies the defaults of KeyLifecycleMetadata
+  lifecycle: KeyLifecycleMetadata;
 }
 
 /// Per-application resource ID to key slot name mapping
