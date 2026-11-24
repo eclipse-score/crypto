@@ -86,14 +86,21 @@ ProviderArbiter::ResolveProvider(const ProviderSelectionRequest& request,
 score::crypto::Expected<ProviderHandlerSelection, score::crypto::CryptoErrorCode> ProviderArbiter::Select(
     const ProviderSelectionRequest& request) const
 {
-    // A context type that needs a key is refused before any provider is asked. Provider selection uses the key
-    // reference to keep provider affinity, so a request without one must not reach it.
-    if (!request.key_node_id.has_value() &&
-        common::RequiredKeyPermission(request.context_type, request.mode).has_value())
+    // A key reference is accepted exactly when the context type needs a key, and a mismatch is refused before any
+    // provider is asked. Provider selection uses the key reference to keep provider affinity, so a keyed request
+    // without one, or a key on a context type that cannot bind it, must not reach it.
+    const bool takes_key = common::RequiredKeyPermission(request.context_type, request.mode).has_value();
+    if (takes_key && !request.key_node_id.has_value())
     {
         score::mw::log::LogError() << "[SCORE_API_MED] ERROR - Missing key resource for keyed context: "
                                    << request.context_type;
         return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kInvalidArgument);
+    }
+    if (!takes_key && request.key_node_id.has_value())
+    {
+        score::mw::log::LogError() << "[SCORE_API_MED] ERROR - Context type " << request.context_type
+                                   << " does not accept a key reference";
+        return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kKeyOperationNotPermitted);
     }
 
     const std::array<std::optional<common::CryptoProviderType>, 2U> candidates{request.provider.primary,

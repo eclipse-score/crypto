@@ -17,7 +17,6 @@ autonumber
 hide footbox
 skinparam shadowing false
 skinparam defaultFontName Arial
-skinparam ParticipantPadding 18
 skinparam sequenceMessageAlign center
 
 actor Client

@@ -51,6 +51,11 @@ struct InitializationParams
     /// Raw CTX_CREATE parameters [0..N] as received on the wire.
     /// Handlers may extract provider-specific extended parameters from this
     /// vector without requiring mediator changes for each new field.
+    /// The entries are non-owning: string and buffer entries view the request
+    /// and are valid only during InitializeContext(). A handler that needs a
+    /// value afterwards, for example on Reset(), keeps its own copy; a handler
+    /// that keeps these parameters to call InitializeContext() again reads only
+    /// value entries from them.
     /// Wire layout:
     /// [0]=context_type
     /// [1]=algorithm

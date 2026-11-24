@@ -21,7 +21,7 @@ Mediator
    :status: valid
    :safety: QM
    :security: YES
-   :belongs_to: feat__security_crypto
+   :belongs_to: feat__crypto
 
 The mediator is the daemon subcomponent that routes client operations to the
 subsystem that serves them. For context creation it decodes the request,

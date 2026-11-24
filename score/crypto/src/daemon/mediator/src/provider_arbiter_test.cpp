@@ -99,6 +99,27 @@ TEST_F(ProviderArbiterTest, KeyedContextWithoutKeyIsRefusedBeforeAnyProviderIsAs
     EXPECT_EQ(software->Factory()->CreateCalls(), 0);
 }
 
+TEST_F(ProviderArbiterTest, KeyReferenceOnContextTypeThatTakesNoKeyIsRefusedBeforeAnyProviderIsAsked)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__decode_validate");
+    RecordProperty("Description",
+                   "A key reference on a context type that takes no key is refused as not permitted, and no provider "
+                   "is asked to create a handler.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto software = Register("SW", CryptoProviderType::SOFTWARE, ProviderCapability::kCrypto);
+    const auto arbiter = MakeArbiter();
+    auto request = Request({CryptoProviderType::SOFTWARE, std::nullopt});
+    request.key_node_id = 5U;
+
+    const auto selected = arbiter.Select(request);
+
+    ASSERT_FALSE(selected.has_value());
+    EXPECT_EQ(selected.error(), score::crypto::CryptoErrorCode::kKeyOperationNotPermitted);
+    EXPECT_EQ(software->Factory()->CreateCalls(), 0);
+}
+
 TEST_F(ProviderArbiterTest, ExplicitProviderTypeSelectsProviderOfThatType)
 {
     RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__arbitration");

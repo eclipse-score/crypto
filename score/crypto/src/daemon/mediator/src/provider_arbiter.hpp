@@ -69,7 +69,9 @@ class ProviderArbiter final
 
     /// @brief Select a provider and create its handler, trying eligible fallback preferences as needed.
     /// @param request Provider selection inputs and context details.
-    /// @return The selected provider and handler, or the last provider/handler creation error.
+    /// @return The selected provider and handler. Before any provider is asked, kInvalidArgument when the context
+    ///         type needs a key and no key reference is given, and kKeyOperationNotPermitted when a key reference
+    ///         is given for a context type that takes no key. Otherwise the last provider/handler creation error.
     [[nodiscard]] score::crypto::Expected<ProviderHandlerSelection, score::crypto::CryptoErrorCode> Select(
         const ProviderSelectionRequest& request) const;
 
