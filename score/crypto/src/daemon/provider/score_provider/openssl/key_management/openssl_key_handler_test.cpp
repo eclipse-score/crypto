@@ -1351,3 +1351,35 @@ TEST_F(OpenSslKeyHandlerTest, GetRawKeyBytes_ReleasedHandler_ReturnsNull)
     EXPECT_EQ(ptr, nullptr);
     EXPECT_EQ(out_size, 0U);
 }
+
+// Releasing a temporary key must wipe its material, not just drop the reference.
+// After Release() no accessor may hand out key material any more: not the raw bytes,
+// not an export, not a serialization for a slot. (The wipe itself is OPENSSL_cleanse in
+// Release(); reading the freed buffer to check it would be undefined behaviour.)
+TEST_F(OpenSslKeyHandlerTest, Release_SymmetricKey_LeavesNoReadableKeyMaterial)
+{
+    std::uint8_t raw_key[32];
+    std::memset(raw_key, 0x5A, sizeof(raw_key));
+    km::KeyImportRequest req{};
+    req.key_data = raw_key;
+    req.key_data_size = sizeof(raw_key);
+    req.algorithm = Row("HMAC-SHA256");
+    req.permissions = score::crypto::KeyOperationPermission::kMac | score::crypto::KeyOperationPermission::kExport;
+
+    auto result = m_factory->ImportKey(req);
+    ASSERT_TRUE(result.has_value());
+    const auto& handler = result.value();
+    ASSERT_TRUE(handler->Export().has_value());
+    ASSERT_TRUE(handler->SerializeForStorage().has_value());
+
+    ASSERT_TRUE(handler->Release().has_value());
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+    const auto* openssl_handler =
+        static_cast<const score::crypto::daemon::provider::openssl::OpenSslKeyHandler*>(handler.get());
+    std::size_t out_size = 42U;
+    EXPECT_EQ(openssl_handler->GetRawKeyBytes(out_size), nullptr);
+    EXPECT_EQ(out_size, 0U);
+    EXPECT_FALSE(handler->Export().has_value());
+    EXPECT_FALSE(handler->SerializeForStorage().has_value());
+}

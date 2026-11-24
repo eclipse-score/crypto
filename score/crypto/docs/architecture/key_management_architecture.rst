@@ -379,6 +379,67 @@ Step 5 — Release resources
 
 The key material is now securely zeroized.
 
+Secure Key Deletion
+-------------------
+
+Key material is wiped, not just dropped, wherever the daemon lets go of it:
+
+- **Temporary keys**: ``IKeyHandler::Release()`` zeroizes the provider-held
+  material when the last reference is released (see Step 5 above).
+  ``SecureKeyBytes``, the buffer used for exported key bytes, zeroizes with
+  ``common::SecureZeroize`` on destruction and before move assignment
+  replaces its buffer, so the compiler cannot drop the wipe as a dead store.
+- **Key slots**: ``IKeySlotHandler::ClearSlot()`` erases a persistent slot.
+  ``FileBackedSlotHandler`` overwrites the key file with zeros in place,
+  flushes it with ``fsync``, only then removes it, and flushes the directory
+  so the removal survives a power loss (``common::storage::SecureEraseFile``).
+  The deployment descriptor is kept, so the slot keeps its location and
+  reports ``kEmpty``. Clearing an empty slot succeeds. The key path must be
+  absolute without ``..`` and name a regular file no larger than a key file;
+  a symbolic link, named pipe or device in its place is refused and logged.
+  Leftover temporary files of an interrupted store are erased with it. If the
+  directory flush fails after the removal, a retry flushes it again even though
+  the file is already gone. Key material already loaded from the slot is wiped
+  when its last reference is released.
+- **Storing into a slot**: ``FileBackedSlotHandler::StoreKey()`` writes only
+  into an empty slot and returns ``kKeySlotOccupied`` otherwise, so replacing
+  a key is ``ClearSlot()`` followed by ``StoreKey()`` and the old key is
+  securely erased, never silently overwritten. The key must fit the slot's
+  algorithm. The provider serializes it with
+  ``IKeyHandler::SerializeForStorage()`` in the form its ``ImportKey`` reads
+  back (raw bytes for a symmetric key, DER for an asymmetric one); this is a
+  daemon-internal step and does not need the client-facing ``kExport``
+  permission. ``common::storage::CreateSecretFile`` writes the bytes to an
+  exclusive, owner-only (``0600``) temporary file, flushes it and publishes it
+  with ``link()``, which refuses an existing key file atomically. The mode is
+  set explicitly, so the umask cannot narrow it. Missing directories are
+  created with mode ``0700`` and each new entry is flushed. A failed store
+  leaves no key behind: the temporary file is securely erased, and if the
+  temporary name cannot be removed or the directory cannot be flushed after
+  publishing, the published key is erased again so the store can be retried.
+  Temporary files left by a crashed process are erased by the next store or
+  clear of the slot.
+- **Key directory**: both operations open the key's directory once and work
+  relative to that descriptor (``openat``, ``linkat``, ``unlinkat``), so the
+  path cannot be redirected while they run. The directory must be owned by
+  the daemon's user or by root and must not be writable by its group or by
+  others (mode ``0770`` and ``0775`` are refused as well as ``0777``);
+  otherwise the operation is refused. Before a name is removed it is checked
+  to still refer to the file just overwritten. Directory components above it
+  may be symbolic links set up by the deployment, which is why the trust check
+  applies to the directory actually reached. The directories above it are not
+  checked: whoever can write to one of them could move the whole key directory
+  away, and an erase would then find no key and report success. The deployment
+  must therefore keep every directory above a key directory writable by
+  trusted users only. Concurrent operations on the
+  same slot are settled by the file system: ``link()`` lets only one store
+  publish, and an erase never removes an entry it did not overwrite.
+
+An in-place overwrite reaches the blocks the file occupied. On storage that
+remaps writes (flash translation layers, copy-on-write or log-structured file
+systems) it cannot guarantee that every physical copy is gone; keys that need
+that guarantee belong in an HSM or TEE slot, or must be encrypted at rest.
+
 Thread Safety
 -------------
 

@@ -13,13 +13,72 @@
 
 #include "score/crypto/src/daemon/provider/score_provider/openssl/key_management/openssl_key_handler.hpp"
 
-#include <openssl/crypto.h>  // OPENSSL_cleanse
-#include <openssl/evp.h>     // EVP_PKEY_free
+#include "score/mw/log/logging.h"
+
+#include <openssl/core_names.h>  // OSSL_PKEY_PARAM_PRIV_KEY / OSSL_PKEY_PARAM_RSA_D
+#include <openssl/crypto.h>      // OPENSSL_cleanse
+#include <openssl/err.h>         // ERR_get_error / ERR_error_string_n
+#include <openssl/evp.h>         // EVP_PKEY_free / EVP_PKEY_todata
+#include <openssl/params.h>      // OSSL_PARAM_locate / OSSL_PARAM_free
+#include <openssl/x509.h>        // i2d_PrivateKey / i2d_PUBKEY
 #include <algorithm>
+#include <array>
+#include <string_view>
 #include <utility>
 
 namespace score::crypto::daemon::provider::openssl
 {
+namespace
+{
+
+constexpr std::string_view kLogPrefix = "[OPENSSL_KEY_HANDLER] ";
+
+/// Log that @p step failed, with every error OpenSSL queued for it, and clear the queue.
+void LogOpenSslFailure(std::string_view step) noexcept
+{
+    unsigned long code = ERR_get_error();
+    if (code == 0UL)
+    {
+        score::mw::log::LogError() << kLogPrefix << step << " failed (no OpenSSL error queued)";
+        return;
+    }
+    while (code != 0UL)
+    {
+        std::array<char, 256U> text{};
+        ERR_error_string_n(code, text.data(), text.size());
+        score::mw::log::LogError() << kLogPrefix << step << " failed: " << std::string_view{text.data()};
+        code = ERR_get_error();
+    }
+}
+
+/// Whether @p pkey holds its private half. Read from the key's own parameters, so a failing
+/// private-key encoding is never mistaken for a public-only key. The exported parameters
+/// include the private value when there is one, so every value is cleansed before the array
+/// is freed (OSSL_PARAM_free clears only what was placed in the secure heap).
+::score::crypto::Expected<bool, ::score::crypto::daemon::common::DaemonErrorCode> HasPrivateHalf(
+    const EVP_PKEY* pkey) noexcept
+{
+    OSSL_PARAM* params = nullptr;
+    if (EVP_PKEY_todata(pkey, EVP_PKEY_KEYPAIR, &params) != 1)
+    {
+        LogOpenSslFailure("SerializeForStorage: EVP_PKEY_todata");
+        return ::score::crypto::make_unexpected(::score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+    }
+    // EC and Ed25519 keys name the private value OSSL_PKEY_PARAM_PRIV_KEY, RSA keys OSSL_PKEY_PARAM_RSA_D.
+    const bool has_private = (OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_PRIV_KEY) != nullptr) ||
+                             (OSSL_PARAM_locate(params, OSSL_PKEY_PARAM_RSA_D) != nullptr);
+    for (OSSL_PARAM* param = params; param->key != nullptr; ++param)
+    {
+        if ((param->data != nullptr) && (param->data_size > 0U))
+        {
+            OPENSSL_cleanse(param->data, param->data_size);
+        }
+    }
+    OSSL_PARAM_free(params);
+    return has_private;
+}
+
+}  // namespace
 
 void EvpPkeyDeleter::operator()(evp_pkey_st* pkey) const noexcept
 {
@@ -122,6 +181,56 @@ OpenSslKeyHandler::Export() const
 
     key_management::SecureKeyBytes out;
     out.bytes.assign(m_key_bytes.begin(), m_key_bytes.end());
+    return out;
+}
+
+::score::crypto::Expected<key_management::SecureKeyBytes, ::score::crypto::daemon::common::DaemonErrorCode>
+OpenSslKeyHandler::SerializeForStorage() const
+{
+    if (m_released)
+    {
+        return ::score::crypto::make_unexpected(::score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+    }
+
+    key_management::SecureKeyBytes out;
+    if (!m_pkey)
+    {
+        if (m_key_bytes.empty())
+        {
+            return ::score::crypto::make_unexpected(::score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+        }
+        out.bytes.assign(m_key_bytes.begin(), m_key_bytes.end());
+        return out;
+    }
+
+    // DER as OpenSslKeyFactory::ImportKey reads it back: the private key when there is one
+    // (d2i_AutoPrivateKey), otherwise the SubjectPublicKeyInfo of a public-only key (d2i_PUBKEY).
+    // Which one is decided from the key itself, never from a failed encoding: a private key
+    // that cannot be encoded is an error, not a reason to store only its public half.
+    const auto has_private = HasPrivateHalf(m_pkey.get());
+    if (!has_private.has_value())
+    {
+        return ::score::crypto::make_unexpected(has_private.error());
+    }
+    const bool is_private = has_private.value();
+    const std::string_view encoder =
+        is_private ? "SerializeForStorage: i2d_PrivateKey" : "SerializeForStorage: i2d_PUBKEY";
+
+    const int length = is_private ? i2d_PrivateKey(m_pkey.get(), nullptr) : i2d_PUBKEY(m_pkey.get(), nullptr);
+    if (length <= 0)
+    {
+        LogOpenSslFailure(encoder);
+        return ::score::crypto::make_unexpected(::score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+    }
+
+    out.bytes.resize(static_cast<std::size_t>(length));
+    unsigned char* cursor = out.bytes.data();
+    const int written = is_private ? i2d_PrivateKey(m_pkey.get(), &cursor) : i2d_PUBKEY(m_pkey.get(), &cursor);
+    if (written != length)
+    {
+        LogOpenSslFailure(encoder);
+        return ::score::crypto::make_unexpected(::score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+    }
     return out;
 }
 
