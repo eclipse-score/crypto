@@ -11,7 +11,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@score_baselibs//score/flatbuffers/bazel:codegen.bzl", "generate_cpp")
 
 # Export FlatBuffers schema for use by tests
@@ -23,8 +23,8 @@ filegroup(
 
 generate_cpp(
     name = "generated_crypto_config",
-    schema = "crypto_config_fbs_schema",
     output = "crypto_config_generated.h",
+    schema = "crypto_config_fbs_schema",
 )
 
 # Configuration types and structures (headers only)
@@ -50,6 +50,17 @@ cc_library(
     }),
 )
 
+cc_test(
+    name = "backend_config_unit_test",
+    srcs = ["src/backend_config_test.cpp"],
+    deps = [
+        ":config",
+        ":flatbuffer_config_parser",
+        "@googletest//:gtest_main",
+        "@score_baselibs//score/flatbuffers:flatbufferscpp",
+    ],
+)
+
 # FlatBuffers configuration parser
 cc_library(
     name = "flatbuffer_config_parser",
@@ -66,9 +77,10 @@ cc_library(
     deps = [
         ":config_types",
         "//score/crypto/src/common:common_types",
+        "//score/crypto/src/common:flatbuffer_config_utils",
         "//score/crypto/src/daemon/common",
-        "@score_baselibs//score/mw/log",
         "@score_baselibs//score/flatbuffers:flatbufferscpp",
+        "@score_baselibs//score/mw/log",
     ],
 )
 
@@ -81,5 +93,6 @@ cc_library(
         ":config_types",
         ":flatbuffer_config_parser",
         "//score/crypto/src/daemon/common",
+        "@score_baselibs//score/filesystem",
     ],
 )
