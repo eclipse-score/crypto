@@ -14,8 +14,8 @@
 #ifndef SCORE_CRYPTO_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
 #define SCORE_CRYPTO_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
 
-#include "score/crypto/src/api/common/error_domain.hpp"
-#include "score/crypto/src/api/common/i_memory.hpp"
+#include "score/crypto/common/error_domain.hpp"
+#include "score/crypto/common/i_memory.hpp"
 #include "score/crypto/src/common/types.hpp"
 
 #include <cstdint>

@@ -16,7 +16,7 @@
 
 /// @file i_buffer_transcoder.hpp
 /// @brief INTERNAL header — not part of the public crypto API.
-#include "score/crypto/src/api/common/error_domain.hpp"
+#include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/src/api/data_plane/i_shm_region_registry.hpp"
 
 #include "score/crypto/src/daemon/control_plane/control_protocol.h"

@@ -13,7 +13,7 @@
 #ifndef SCORE_CRYPTO_SRC_API_CONTROL_PLANE_CONTROL_PLANE_CONNECTION_REGISTRY_HPP
 #define SCORE_CRYPTO_SRC_API_CONTROL_PLANE_CONTROL_PLANE_CONNECTION_REGISTRY_HPP
 
-#include "score/crypto/src/api/common/error_domain.hpp"
+#include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/src/api/control_plane/src/control_plane_connection.hpp"
 
 #include <chrono>
