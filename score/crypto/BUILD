@@ -33,7 +33,7 @@ cc_library(
 
 cc_test(
     name = "crypto_context_impl_unit_test",
-    srcs = ["src/crypto_context_impl_test.cpp"],
+    srcs = ["src/api/crypto_context_impl_test.cpp"],
     deps = [
         ":crypto_stack",
         "//score/crypto/common:crypto_common",
@@ -49,19 +49,18 @@ cc_test(
 cc_library(
     name = "crypto_stack",
     srcs = [
-        "src/crypto_context_impl.cpp",
-        "src/crypto_context_impl.hpp",
-        "src/crypto_stack_factory.cpp",
-        "src/crypto_stack_impl.cpp",
-        "src/crypto_stack_impl.hpp",
-        "src/provider_type_converter.hpp",
+        "src/api/crypto_context_impl.cpp",
+        "src/api/crypto_context_impl.hpp",
+        "src/api/crypto_stack_factory.cpp",
+        "src/api/crypto_stack_impl.cpp",
+        "src/api/crypto_stack_impl.hpp",
+        "src/api/provider_type_converter.hpp",
     ],
     hdrs = [
         "crypto_stack_factory.hpp",
         "i_crypto_context.hpp",
         "i_crypto_stack.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "//score/crypto:operations",

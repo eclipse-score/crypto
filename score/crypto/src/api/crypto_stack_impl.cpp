@@ -11,19 +11,19 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "score/crypto/src/crypto_stack_impl.hpp"
+#include "score/crypto/src/api/crypto_stack_impl.hpp"
 
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/common/i_memory_allocator.hpp"
 #include "score/crypto/config/base_context_config.hpp"
 #include "score/crypto/crypto_stack_factory.hpp"
 #include "score/crypto/i_crypto_context.hpp"
+#include "score/crypto/src/api/crypto_context_impl.hpp"
 #include "score/crypto/src/api/data_plane/i_pool_allocator.hpp"
 #include "score/crypto/src/api/data_plane/i_read_write_memory_factory.hpp"
 #include "score/crypto/src/api/data_plane/i_shm_region_registry.hpp"
 #include "score/crypto/src/api/data_plane/src/buffer_shm_transcoder.hpp"
 #include "score/crypto/src/api/data_plane/src/shm_memory_allocator.hpp"
-#include "score/crypto/src/crypto_context_impl.hpp"
 
 #include "score/crypto/src/api/control_plane/i_connection.hpp"
 

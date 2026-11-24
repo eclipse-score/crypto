@@ -153,7 +153,6 @@ cc_library(
         "operations/verify/openssl_rsa_pss_verify_handler.hpp",
         "provider_openssl.hpp",
     ],
-    includes = ["."],
     target_compatible_with = select({
         "//score/crypto/src/backend:openssl_backend_active": [],
         "//conditions:default": ["@platforms//:incompatible"],
@@ -207,7 +206,6 @@ cc_library(
     implementation_deps = [
         "@score_openssl//:openssl",
     ],
-    includes = ["."],
     linkstatic = True,
     target_compatible_with = select({
         "//score/crypto/src/backend:openssl_backend_active": [],

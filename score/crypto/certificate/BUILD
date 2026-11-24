@@ -18,7 +18,6 @@ cc_library(
     hdrs = [
         "i_ocsp_request_export.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "@score_baselibs//score/language/futurecpp",

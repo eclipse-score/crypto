@@ -16,11 +16,11 @@
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/config/base_context_config.hpp"
 #include "score/crypto/i_crypto_stack.hpp"
+#include "score/crypto/src/api/crypto_stack_impl.hpp"
 #include "score/crypto/src/api/data_plane/i_read_write_memory_factory.hpp"
 #include "score/crypto/src/api/data_plane/shm_memory_factory.hpp"
 #include "score/crypto/src/api/data_plane/src/pool_allocator.hpp"
 #include "score/crypto/src/api/data_plane/src/shm_region_registry.hpp"
-#include "score/crypto/src/crypto_stack_impl.hpp"
 
 #include "score/crypto/src/api/control_plane/connection_factory.hpp"
 #include "score/crypto/src/api/control_plane/i_connection.hpp"

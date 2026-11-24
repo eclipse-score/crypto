@@ -19,7 +19,6 @@ cc_library(
         "i_context.hpp",
         "i_streaming_context.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "//score/crypto/common:crypto_common",
@@ -40,7 +39,6 @@ cc_library(
         "i_sign_context.hpp",
         "i_verify_signature_context.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         ":context_bases",
@@ -60,7 +58,6 @@ cc_library(
         "i_certificate_verification_context.hpp",
         "i_trust_store_management_context.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         ":context_bases",
@@ -95,7 +92,6 @@ cc_library(
         "src/sign_context_impl.hpp",
         "src/verify_signature_context_impl.hpp",
     ],
-    includes = ["."],
     visibility = ["//:__subpackages__"],
     deps = [
         ":crypto_contexts",

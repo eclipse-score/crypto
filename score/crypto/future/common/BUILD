@@ -18,7 +18,6 @@ cc_library(
     hdrs = [
         "i_secure_storage_manager.hpp",
     ],
-    includes = ["."],
     visibility = ["//visibility:public"],
     deps = [
         "@score_baselibs//score/language/futurecpp",

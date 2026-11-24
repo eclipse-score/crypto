@@ -70,7 +70,6 @@ cc_library(
         # root/
         "key_management_module.hpp",
     ],
-    includes = ["."],
     visibility = [
         "//:__subpackages__",
     ],
@@ -106,7 +105,6 @@ cc_library(
         # root/
         "key_management_module.cpp",
     ],
-    includes = ["."],
     linkstatic = True,
     visibility = ["//:__subpackages__"],
     deps = [

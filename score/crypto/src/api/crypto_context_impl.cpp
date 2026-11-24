@@ -11,7 +11,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#include "score/crypto/src/crypto_context_impl.hpp"
+#include "score/crypto/src/api/crypto_context_impl.hpp"
 
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/config/cipher_context_config.hpp"
@@ -28,12 +28,12 @@
 #include "score/crypto/contexts/src/random_context_impl.hpp"
 #include "score/crypto/contexts/src/sign_context_impl.hpp"
 #include "score/crypto/contexts/src/verify_signature_context_impl.hpp"
+#include "score/crypto/src/api/provider_type_converter.hpp"
 #include "score/crypto/src/daemon/common/actors.hpp"
 #include "score/crypto/src/daemon/common/context_mode.hpp"
 #include "score/crypto/src/daemon/common/context_types.hpp"
 #include "score/crypto/src/daemon/common/types.hpp"
 #include "score/crypto/src/daemon/control_plane/control_protocol.h"
-#include "score/crypto/src/provider_type_converter.hpp"
 #include "score/crypto/types/certificate.hpp"
 #include "score/crypto/types/common.hpp"
 
