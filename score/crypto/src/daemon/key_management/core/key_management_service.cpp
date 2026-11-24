@@ -461,7 +461,8 @@ Expected<KeyBindingResult, score::crypto::daemon::common::DaemonErrorCode> KeyMa
         {
             score::mw::log::LogError() << LOG_PREFIX << "BindKeyToContext: no primary provider for slot "
                                        << key_node_id;
-            return score::crypto::make_unexpected(score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+            return score::crypto::make_unexpected(
+                score::crypto::daemon::common::DaemonErrorCode::kProviderNotAvailable);
         }
         const common::ProviderId& slot_provider_id = primary_prov_res.value();
 

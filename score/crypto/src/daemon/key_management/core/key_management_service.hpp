@@ -191,9 +191,15 @@ class KeyManagementService final
     /// @param client_id         Owning client.
     /// @param context_node_id   Context the key is bound to.
     /// @param key_node_id       DataNodeId of a KeySlotDataNode or KeyDataNode.
-    /// @param target_provider_id Provider that owns the context; cross-provider
-    ///                          binding returns kNotSupported.
-    /// @return KeyBindingResult on success; DaemonErrorCode on failure.
+    /// @param target_provider_id Provider that owns the context; a key held by another
+    ///                          provider is not bound.
+    /// @return KeyBindingResult on success. On failure:
+    ///         kInvalidArgument when the node is unknown or is neither node kind;
+    ///         kUnsupportedOperation when the key belongs to another provider, or the provider
+    ///         has no slot support;
+    ///         kProviderNotAvailable when the slot has no primary provider;
+    ///         kInternalError when a node is inconsistent;
+    ///         otherwise the error of LoadOrShare when the key cannot be loaded.
     [[nodiscard]] Expected<KeyBindingResult, score::crypto::daemon::common::DaemonErrorCode> BindKeyToContext(
         data_manager::ClientId client_id,
         data_manager::DataNodeId context_node_id,
@@ -218,8 +224,9 @@ class KeyManagementService final
     /// @note DataManager serializes individual node accesses; the permission check and binding are separate accesses.
     /// @return KeyBindingResult on success. kKeyOperationNotPermitted when the
     ///         context type takes no key or the key does not permit the operation;
-    ///         kIncompatibleKeyType when the key does not fit the algorithm;
-    ///         kInvalidArgument when the key cannot be looked up or bound.
+    ///         kIncompatibleKeyType when the key does not fit the algorithm, checked before and after binding;
+    ///         kInvalidArgument when the key cannot be looked up; otherwise the error of BindKeyToContext
+    ///         when binding fails.
     [[nodiscard]] Expected<KeyBindingResult, score::crypto::daemon::common::DaemonErrorCode> BindAndAuthorize(
         const KeyBindRequest& request);
 
