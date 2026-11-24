@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONFIG_BASE_CONTEXT_CONFIG_HPP
-#define SCORE_CRYPTO_SRC_API_CONFIG_BASE_CONTEXT_CONFIG_HPP
+#ifndef SCORE_CRYPTO_CONFIG_BASE_CONTEXT_CONFIG_HPP
+#define SCORE_CRYPTO_CONFIG_BASE_CONTEXT_CONFIG_HPP
 
 #include "score/crypto/types/common.hpp"
 
@@ -224,4 +224,4 @@ inline std::chrono::milliseconds ResolveOperationTimeout(
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONFIG_BASE_CONTEXT_CONFIG_HPP
+#endif  // SCORE_CRYPTO_CONFIG_BASE_CONTEXT_CONFIG_HPP

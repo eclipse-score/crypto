@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CRYPTO_STACK_FACTORY_HPP
-#define SCORE_CRYPTO_SRC_API_CRYPTO_STACK_FACTORY_HPP
+#ifndef SCORE_CRYPTO_CRYPTO_STACK_FACTORY_HPP
+#define SCORE_CRYPTO_CRYPTO_STACK_FACTORY_HPP
 
 #include "score/crypto/i_crypto_stack.hpp"
 #include "score/crypto/src/ipc/message_passing_adapter/ipc_config.h"
@@ -93,4 +93,4 @@ score::Result<ICryptoStack::Uptr> CreateCryptoStack();
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CRYPTO_STACK_FACTORY_HPP
+#endif  // SCORE_CRYPTO_CRYPTO_STACK_FACTORY_HPP

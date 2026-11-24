@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
-#define SCORE_CRYPTO_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
+#ifndef SCORE_CRYPTO_SRC_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
+#define SCORE_CRYPTO_SRC_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
 
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/common/i_memory.hpp"
@@ -93,4 +93,4 @@ class IReadWriteMemoryFactory
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP
+#endif  // SCORE_CRYPTO_SRC_API_DATA_PLANE_I_READ_WRITE_MEMORY_FACTORY_HPP

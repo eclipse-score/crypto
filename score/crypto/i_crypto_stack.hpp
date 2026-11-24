@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_I_CRYPTO_STACK_HPP
-#define SCORE_CRYPTO_SRC_API_I_CRYPTO_STACK_HPP
+#ifndef SCORE_CRYPTO_I_CRYPTO_STACK_HPP
+#define SCORE_CRYPTO_I_CRYPTO_STACK_HPP
 
 #include "score/crypto/common/i_memory_allocator.hpp"
 #include "score/crypto/i_crypto_context.hpp"
@@ -73,4 +73,4 @@ class ICryptoStack
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_I_CRYPTO_STACK_HPP
+#endif  // SCORE_CRYPTO_I_CRYPTO_STACK_HPP

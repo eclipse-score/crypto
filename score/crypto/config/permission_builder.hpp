@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONFIG_PERMISSION_BUILDER_HPP
-#define SCORE_CRYPTO_SRC_API_CONFIG_PERMISSION_BUILDER_HPP
+#ifndef SCORE_CRYPTO_CONFIG_PERMISSION_BUILDER_HPP
+#define SCORE_CRYPTO_CONFIG_PERMISSION_BUILDER_HPP
 
 #include "score/crypto/types/key.hpp"
 
@@ -150,4 +150,4 @@ class PermissionBuilder final
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONFIG_PERMISSION_BUILDER_HPP
+#endif  // SCORE_CRYPTO_CONFIG_PERMISSION_BUILDER_HPP

@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_COMMON_FIXED_CAPACITY_STRING_HPP
-#define SCORE_CRYPTO_SRC_API_COMMON_FIXED_CAPACITY_STRING_HPP
+#ifndef SCORE_CRYPTO_COMMON_FIXED_CAPACITY_STRING_HPP
+#define SCORE_CRYPTO_COMMON_FIXED_CAPACITY_STRING_HPP
 
 #include <algorithm>
 #include <array>
@@ -324,4 +324,4 @@ struct std::hash<score::crypto::FixedCapacityString<N>>
     }
 };
 
-#endif  // SCORE_CRYPTO_SRC_API_COMMON_FIXED_CAPACITY_STRING_HPP
+#endif  // SCORE_CRYPTO_COMMON_FIXED_CAPACITY_STRING_HPP

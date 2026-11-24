@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP
-#define SCORE_CRYPTO_SRC_API_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP
+#ifndef SCORE_CRYPTO_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP
+#define SCORE_CRYPTO_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP
 
 #include "score/crypto/config/base_context_config.hpp"
 
@@ -61,4 +61,4 @@ struct CertificateContextConfig : public BaseContextConfig
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP
+#endif  // SCORE_CRYPTO_CONFIG_CERTIFICATE_CONTEXT_CONFIG_HPP

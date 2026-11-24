@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP
-#define SCORE_CRYPTO_SRC_API_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP
+#ifndef SCORE_CRYPTO_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP
+#define SCORE_CRYPTO_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP
 
 #include "score/crypto/objects/i_key_object.hpp"
 #include "score/result/result.h"
@@ -57,4 +57,4 @@ class IPublicKeyObject : public IKeyObject
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP
+#endif  // SCORE_CRYPTO_OBJECTS_I_PUBLIC_KEY_OBJECT_HPP

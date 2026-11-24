@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_API_COMMON_I_MEMORY_HPP
-#define SCORE_CRYPTO_API_COMMON_I_MEMORY_HPP
+#ifndef SCORE_CRYPTO_COMMON_I_MEMORY_HPP
+#define SCORE_CRYPTO_COMMON_I_MEMORY_HPP
 
 #include "score/result/result.h"
 #include "score/span.hpp"
@@ -103,4 +103,4 @@ class IReadWriteMemory : public IReadOnlyMemory
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_API_COMMON_I_MEMORY_HPP
+#endif  // SCORE_CRYPTO_COMMON_I_MEMORY_HPP

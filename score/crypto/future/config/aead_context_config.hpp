@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP
-#define SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP
+#ifndef SCORE_CRYPTO_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP
+#define SCORE_CRYPTO_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP
 
 #include "score/crypto/config/base_context_config.hpp"
 #include "score/crypto/types/common.hpp"
@@ -88,4 +88,4 @@ struct AeadContextConfig : public BaseContextConfig
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP
+#endif  // SCORE_CRYPTO_FUTURE_CONFIG_AEAD_CONTEXT_CONFIG_HPP

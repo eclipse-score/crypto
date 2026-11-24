@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP
-#define SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP
+#ifndef SCORE_CRYPTO_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP
+#define SCORE_CRYPTO_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP
 
 #include "score/crypto/contexts/i_cipher_context.hpp"
 
@@ -88,4 +88,4 @@ class CipherContextImpl final : public ICipherContext
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP
+#endif  // SCORE_CRYPTO_CONTEXTS_SRC_CIPHER_CONTEXT_IMPL_HPP

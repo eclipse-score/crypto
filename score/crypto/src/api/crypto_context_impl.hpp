@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_SRC_CRYPTO_CONTEXT_IMPL_HPP
-#define SCORE_CRYPTO_SRC_API_SRC_CRYPTO_CONTEXT_IMPL_HPP
+#ifndef SCORE_CRYPTO_SRC_API_CRYPTO_CONTEXT_IMPL_HPP
+#define SCORE_CRYPTO_SRC_API_CRYPTO_CONTEXT_IMPL_HPP
 
 #include "score/crypto/i_crypto_context.hpp"
 #include "score/crypto/src/api/data_plane/i_buffer_transcoder.hpp"
@@ -91,4 +91,4 @@ class CryptoContextImpl final : public ICryptoContext
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_SRC_CRYPTO_CONTEXT_IMPL_HPP
+#endif  // SCORE_CRYPTO_SRC_API_CRYPTO_CONTEXT_IMPL_HPP

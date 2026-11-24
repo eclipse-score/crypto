@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_COMMON_CRYPTO_RESOURCE_GUARD_HPP
-#define SCORE_CRYPTO_SRC_API_COMMON_CRYPTO_RESOURCE_GUARD_HPP
+#ifndef SCORE_CRYPTO_COMMON_CRYPTO_RESOURCE_GUARD_HPP
+#define SCORE_CRYPTO_COMMON_CRYPTO_RESOURCE_GUARD_HPP
 
 #include "score/crypto/types/common.hpp"
 #include "score/result/result.h"
@@ -141,4 +141,4 @@ class CryptoResourceGuard
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_COMMON_CRYPTO_RESOURCE_GUARD_HPP
+#endif  // SCORE_CRYPTO_COMMON_CRYPTO_RESOURCE_GUARD_HPP

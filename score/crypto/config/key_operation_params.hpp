@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONFIG_KEY_OPERATION_PARAMS_HPP
-#define SCORE_CRYPTO_SRC_API_CONFIG_KEY_OPERATION_PARAMS_HPP
+#ifndef SCORE_CRYPTO_CONFIG_KEY_OPERATION_PARAMS_HPP
+#define SCORE_CRYPTO_CONFIG_KEY_OPERATION_PARAMS_HPP
 
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/types/common.hpp"
@@ -584,4 +584,4 @@ struct ImportKeyParams
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONFIG_KEY_OPERATION_PARAMS_HPP
+#endif  // SCORE_CRYPTO_CONFIG_KEY_OPERATION_PARAMS_HPP

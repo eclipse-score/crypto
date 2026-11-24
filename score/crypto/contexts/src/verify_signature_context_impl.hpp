@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP
-#define SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP
+#ifndef SCORE_CRYPTO_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP
+#define SCORE_CRYPTO_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP
 
 #include "score/crypto/contexts/i_verify_signature_context.hpp"
 
@@ -90,4 +90,4 @@ class VerifySignatureContextImpl final : public IVerifySignatureContext
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP
+#endif  // SCORE_CRYPTO_CONTEXTS_SRC_VERIFY_SIGNATURE_CONTEXT_IMPL_HPP

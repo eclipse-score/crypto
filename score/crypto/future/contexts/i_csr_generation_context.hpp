@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP
-#define SCORE_CRYPTO_SRC_API_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP
+#ifndef SCORE_CRYPTO_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP
+#define SCORE_CRYPTO_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP
 
 #include "score/crypto/contexts/i_context.hpp"
 #include "score/crypto/future/certificate/i_csr_export.hpp"
@@ -101,4 +101,4 @@ class ICsrGenerationContext : public IContext
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP
+#endif  // SCORE_CRYPTO_FUTURE_CONTEXTS_I_CSR_GENERATION_CONTEXT_HPP

@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONFIG_CIPHER_CONTEXT_CONFIG_HPP
-#define SCORE_CRYPTO_SRC_API_CONFIG_CIPHER_CONTEXT_CONFIG_HPP
+#ifndef SCORE_CRYPTO_CONFIG_CIPHER_CONTEXT_CONFIG_HPP
+#define SCORE_CRYPTO_CONFIG_CIPHER_CONTEXT_CONFIG_HPP
 
 #include "score/crypto/common/crypto_resource_guard.hpp"
 #include "score/crypto/config/base_context_config.hpp"
@@ -113,4 +113,4 @@ struct CipherContextConfig : public BaseContextConfig
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONFIG_CIPHER_CONTEXT_CONFIG_HPP
+#endif  // SCORE_CRYPTO_CONFIG_CIPHER_CONTEXT_CONFIG_HPP

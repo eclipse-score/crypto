@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_COMMON_SRC_I_RELEASE_CALLBACK_HPP
-#define SCORE_CRYPTO_SRC_API_COMMON_SRC_I_RELEASE_CALLBACK_HPP
+#ifndef SCORE_CRYPTO_COMMON_SRC_I_RELEASE_CALLBACK_HPP
+#define SCORE_CRYPTO_COMMON_SRC_I_RELEASE_CALLBACK_HPP
 
 #include "score/crypto/types/common.hpp"
 #include "score/result/result.h"
@@ -63,4 +63,4 @@ class IReleaseCallback
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_COMMON_SRC_I_RELEASE_CALLBACK_HPP
+#endif  // SCORE_CRYPTO_COMMON_SRC_I_RELEASE_CALLBACK_HPP

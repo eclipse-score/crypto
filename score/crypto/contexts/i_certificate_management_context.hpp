@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP
-#define SCORE_CRYPTO_SRC_API_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP
+#ifndef SCORE_CRYPTO_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP
+#define SCORE_CRYPTO_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP
 
 #include "score/crypto/common/crypto_resource_guard.hpp"
 #include "score/crypto/contexts/i_context.hpp"
@@ -258,4 +258,4 @@ class ICertificateManagementContext : public IContext
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP
+#endif  // SCORE_CRYPTO_CONTEXTS_I_CERTIFICATE_MANAGEMENT_CONTEXT_HPP

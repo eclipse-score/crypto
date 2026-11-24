@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP
-#define SCORE_CRYPTO_SRC_API_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP
+#ifndef SCORE_CRYPTO_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP
+#define SCORE_CRYPTO_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP
 
 /// @file
 /// @brief Internal factory for constructing CryptoResourceGuard instances.
@@ -104,4 +104,4 @@ class CryptoResourceGuardFactory
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP
+#endif  // SCORE_CRYPTO_COMMON_SRC_CRYPTO_RESOURCE_GUARD_FACTORY_HPP

@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP
-#define SCORE_CRYPTO_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP
+#ifndef SCORE_CRYPTO_SRC_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP
+#define SCORE_CRYPTO_SRC_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP
 
 /// @file i_buffer_transcoder.hpp
 /// @brief INTERNAL header — not part of the public crypto API.
@@ -200,4 +200,4 @@ class IBufferTranscoder
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP
+#endif  // SCORE_CRYPTO_SRC_API_DATA_PLANE_I_BUFFER_TRANSCODER_HPP

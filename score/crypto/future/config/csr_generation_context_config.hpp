@@ -11,8 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-#ifndef SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
-#define SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
+#ifndef SCORE_CRYPTO_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
+#define SCORE_CRYPTO_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
 
 #include "score/crypto/config/base_context_config.hpp"
 
@@ -70,4 +70,4 @@ struct CsrGenerationContextConfig : public BaseContextConfig
 
 }  // namespace score
 
-#endif  // SCORE_CRYPTO_SRC_API_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
+#endif  // SCORE_CRYPTO_FUTURE_CONFIG_CSR_GENERATION_CONTEXT_CONFIG_HPP
