@@ -14,7 +14,7 @@
 load("//bazel/tools:json_schema_validator.bzl", "validate_json_schema_test")
 
 INVALID_JSON_FILES = [
-    "test_key_config",
+    "missing_allowed_uid_from_keyslot",
 ]
 
 # Each file must be rejected by the JSON Schema generated from crypto_config.fbs.
