@@ -76,7 +76,9 @@ Note: by default expected_failure is false."
     )
 
     # To ensure the files needed by the script are available, put them in the runfiles
-    runfiles = ctx.runfiles(files = [ctx.file._validator, ctx.file.json, ctx.file.schema])
+    runfiles = ctx.runfiles(files = [ctx.file.json, ctx.file.schema]).merge(
+        ctx.attr._validator[DefaultInfo].default_runfiles,
+    )
     return [DefaultInfo(runfiles = runfiles)]
 
 validate_json_schema_test = rule(
@@ -93,7 +95,6 @@ validate_json_schema_test = rule(
         ),
         "_validator": attr.label(
             default = Label("//bazel/tools:json_schema_validator"),
-            allow_single_file = True,
             executable = True,
             cfg = "exec",
         ),

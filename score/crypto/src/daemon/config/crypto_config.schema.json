@@ -370,29 +370,58 @@
                     "type": "integer",
                     "description": "Maximum reserved connections for a single UID. Bounded by max_total_connections (default 128)"
                 },
+                "default_shm_config": {
+                    "type": "object",
+                    "description": "Default shared memory configuration, used for UIDs not listed in uid_shm_configs;\nunset applies the built-in defaults",
+                    "additionalProperties": false,
+                    "properties": {
+                        "pool_region_size": {
+                            "type": "integer",
+                            "description": "Size of the shared memory pool region, in bytes"
+                        },
+                        "pool_slot_size": {
+                            "type": "integer",
+                            "description": "Size of each slot within the pool, in bytes"
+                        },
+                        "max_bytes_per_client": {
+                            "type": "integer",
+                            "description": "Maximum bytes a client can allocate across all connections\nNote : Shall be greater than or equal to pool_region_size."
+                        }
+                    }
+                },
                 "uid_shm_configs": {
                     "type": "array",
-                    "description": "Per-UID shared memory configuration; absent UIDs use built-in defaults",
+                    "description": "Per-UID shared memory configuration overrides",
                     "items": {
                         "type": "object",
-                        "description": "Per-UID shared memory configuration",
+                        "description": "Maps a UID to its shared memory configuration",
+                        "required": [
+                            "shm_config"
+                        ],
                         "additionalProperties": false,
                         "properties": {
                             "uid": {
                                 "type": "integer",
                                 "description": "UID this configuration applies to"
                             },
-                            "pool_region_size": {
-                                "type": "integer",
-                                "description": "Size of the shared memory pool region for this UID, in bytes"
-                            },
-                            "pool_slot_size": {
-                                "type": "integer",
-                                "description": "Size of each slot within the pool, in bytes"
-                            },
-                            "max_bytes_per_client": {
-                                "type": "integer",
-                                "description": "Maximum bytes this UID can allocate across all connections"
+                            "shm_config": {
+                                "type": "object",
+                                "description": "Shared memory configuration for this UID",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "pool_region_size": {
+                                        "type": "integer",
+                                        "description": "Size of the shared memory pool region, in bytes"
+                                    },
+                                    "pool_slot_size": {
+                                        "type": "integer",
+                                        "description": "Size of each slot within the pool, in bytes"
+                                    },
+                                    "max_bytes_per_client": {
+                                        "type": "integer",
+                                        "description": "Maximum bytes a client can allocate across all connections\nNote : Shall be greater than or equal to pool_region_size."
+                                    }
+                                }
                             }
                         }
                     }

@@ -219,16 +219,24 @@ table GeneralConfig {
 // IPC configuration
 // ---------------------------------------------------------------------------
 
-/// Per-UID shared memory configuration
-table UidShmConfig {
-  /// UID this configuration applies to
-  uid: uint32;
-  /// Size of the shared memory pool region for this UID, in bytes
+/// Shared memory configuration, without a UID. Used as the default and as the
+/// per-UID value in UidShmConfig
+table ShmConfig {
+  /// Size of the shared memory pool region, in bytes
   pool_region_size: uint64;
   /// Size of each slot within the pool, in bytes
   pool_slot_size: uint64;
-  /// Maximum bytes this UID can allocate across all connections
+  /// Maximum bytes a client can allocate across all connections
+  /// Note : Shall be greater than or equal to pool_region_size.
   max_bytes_per_client: uint64;
+}
+
+/// Maps a UID to its shared memory configuration
+table UidShmConfig {
+  /// UID this configuration applies to
+  uid: uint32;
+  /// Shared memory configuration for this UID
+  shm_config: ShmConfig (required);
 }
 
 table IpcConfig {
@@ -237,7 +245,10 @@ table IpcConfig {
   max_total_connections: uint32 = 128;
   /// Maximum reserved connections for a single UID. Bounded by max_total_connections (default 128)
   max_connections_per_uid: uint32 = 128;
-  /// Per-UID shared memory configuration; absent UIDs use built-in defaults
+  /// Default shared memory configuration, used for UIDs not listed in uid_shm_configs;
+  /// unset applies the built-in defaults
+  default_shm_config: ShmConfig;
+  /// Per-UID shared memory configuration overrides
   uid_shm_configs: [UidShmConfig];
 
 }

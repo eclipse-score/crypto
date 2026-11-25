@@ -33,21 +33,15 @@ Goals
 1. Concept shall align with stakeholder requirements, central concept and decision records of eclipse score.
 2. Shall be extensible for the vendor distributions.
 3. Loose coupling with user applications.
-4. Ease of use : there shall be possibility of fallback default values, which the integrator/ user can reuse across applications instead of focrcing to configure for every application.
+4. Ease of use : there shall be possibility of fallback default values, which the integrator/ user can reuse across applications instead of forcing to configure for every application.
 5. Cross Module accessibility. Middleware processes may access Keys using the same ``AppKeySlotMapping`` which applications also use, why do we need a seperate element ?. For Private Key mapped to certificate, added ``private_key_slot_name`` under ``CertSlotEntry``.
 6. Absolute and relative paths for key and certs : Added, however this leaves scope for misconfiguration which has to be caught during parsing.
-7. Enforcing common interface for additonal schema fbs files used  schema file added for PKCS11 backend : What is the rationale behind it ?
+7. Enforcing common interface for additional schema fbs files used  schema file added for PKCS11 backend : What is the rationale behind it ?
    Note : Currently keyslot holds algorithm.
-
-
-Goals of Config Parser
-=======================
-1. Shall support reparsing and reloading of the config.
-2. Individual logical group of config shall be broken into seperate classes, in order not to force clients not to depend on config which they do not need.
 
 Stakeholder requirements
 ========================
-1. Decisioon record : https://eclipse-score.github.io/score/main/features/configuration/config_model/index.html#doc__configuration_model
+1. Decision record : https://eclipse-score.github.io/score/main/features/configuration/config_model/index.html#doc__configuration_model
 
 
 Important Notes
@@ -55,3 +49,8 @@ Important Notes
 
 The JSON Schema validation rule in `bazel/tools/json_schema_validator.bzl` was copied from the communication repository and extended locally. The schema-export script `generate_schema.py` and the validate-before-serialize macro `crypto_config.bzl` are crypto-specific additions, not verbatim copies. A better approach is to expose the common generation and validation tooling through shared Bazel dependencies, such as `score_baselibs` or `score_tooling`, and reuse it in both repositories instead of maintaining copied implementations.
 
+Open points
+=============
+1. Configuration Philosophy : How do we reduce boilerplate for the user while keeping the configured values transparent? Should missing values always fall back to defaults (optionally emitting a warning), or should the user always be required to set them explicitly?
+2. Profile based config : What is configurable, is it only the profile name in json config ? Does the default values of elements present in source code or json or specified in the schema ? 
+3. Cross Module handling : Collect input from other Modules and within SEC IG.
