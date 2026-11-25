@@ -11,12 +11,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // *******************************************************************************
 
-// Crypto Configuration Schema
-// Covers key slot configuration and certificate management configuration.
+// SINGLE SOURCE OF TRUTH for the score::crypto runtime configuration.
 
 file_identifier "CCFG";  // Crypto Configuration
 
-namespace score.crypto.daemon.config.keyslot;
+namespace score.crypto.daemon.config.flatbuf;
 
 // ---------------------------------------------------------------------------
 // Key slot configuration (existing)
@@ -76,7 +75,7 @@ table KeySlotConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Certificate management configuration (new)
+// Certificate management configuration
 // ---------------------------------------------------------------------------
 
 /// Trust store membership kind — mirrors CertificateConfig::TrustStoreMemberKind

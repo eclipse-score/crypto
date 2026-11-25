@@ -28,7 +28,7 @@
 // FlatBuffers-generated header (from crypto_config.fbs via genrule)
 #include "score/crypto/src/daemon/config/crypto_config_generated.h"
 
-using namespace score::crypto::daemon::config::keyslot;
+using namespace score::crypto::daemon::config::flatbuf;
 
 namespace score::crypto::daemon::config
 {
