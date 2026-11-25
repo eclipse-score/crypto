@@ -24,9 +24,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//score/crypto/common:crypto_common",
-        "//score/crypto/types:types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -49,9 +49,9 @@ cc_library(
     hdrs = ["context_mode.hpp"],
     visibility = ["//visibility:public"],
     deps = [
-        "//score/crypto/types:types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -63,8 +63,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":context_mode",
-        "//score/crypto/types:types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -108,15 +108,15 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        ":keyed_registry",
         ":context_mode",
         ":handler_headers",
+        ":keyed_registry",
         ":resource_resolver",
-        "//score/crypto/src/api/types:types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
         "//score/crypto/src/daemon/common:algorithm_catalog",
         "//score/crypto/src/daemon/control_plane:request_handler_hdr",
+        "//score/crypto/types",
     ],
 )
 

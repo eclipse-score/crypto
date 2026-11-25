@@ -13,8 +13,8 @@
 
 #include "score/crypto/src/daemon/key_management/core/key_slot_resource_resolver.hpp"
 
-#include "score/crypto/src/api/common/error_domain.hpp"
-#include "score/crypto/src/api/types/common.hpp"
+#include "score/crypto/common/error_domain.hpp"
+#include "score/crypto/types/common.hpp"
 
 #include <cstdint>
 #include <string>

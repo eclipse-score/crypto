@@ -13,7 +13,6 @@
 
 #include "score/crypto/src/daemon/mediator/mediator_impl.hpp"
 
-#include "score/crypto/src/api/types/common.hpp"
 #include "score/crypto/src/daemon/common/daemon_error.hpp"
 #include "score/crypto/src/daemon/config/inc/config.hpp"
 #include "score/crypto/src/daemon/control_plane/control_protocol.h"
@@ -23,6 +22,7 @@
 #include "score/crypto/src/daemon/mediator/src/mediator_test_doubles.hpp"
 #include "score/crypto/src/daemon/mediator/src/provider_arbiter.hpp"
 #include "score/crypto/src/daemon/provider/provider_manager.hpp"
+#include "score/crypto/types/common.hpp"
 
 #include <gtest/gtest.h>
 

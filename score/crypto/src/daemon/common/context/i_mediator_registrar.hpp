@@ -14,12 +14,12 @@
 #ifndef SCORE_CRYPTO_SRC_DAEMON_COMMON_CONTEXT_I_MEDIATOR_REGISTRAR_HPP
 #define SCORE_CRYPTO_SRC_DAEMON_COMMON_CONTEXT_I_MEDIATOR_REGISTRAR_HPP
 
-#include "score/crypto/src/api/types/common.hpp"
 #include "score/crypto/src/daemon/common/context/i_context_factory.hpp"
 #include "score/crypto/src/daemon/common/context/i_mediator_query.hpp"
 #include "score/crypto/src/daemon/common/context/i_resource_resolver.hpp"
 #include "score/crypto/src/daemon/common/context/keyed_registry.hpp"
 #include "score/crypto/src/daemon/common/types.hpp"
+#include "score/crypto/types/common.hpp"
 
 #include <memory>
 #include <string>

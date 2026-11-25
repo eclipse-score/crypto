@@ -18,7 +18,6 @@
 #include <string>
 #include <utility>
 
-#include "score/crypto/src/api/types/common.hpp"
 #include "score/crypto/src/daemon/common/context/i_context_factory.hpp"
 #include "score/crypto/src/daemon/common/context/i_mediator_query.hpp"
 #include "score/crypto/src/daemon/common/context/i_mediator_registrar.hpp"
@@ -29,6 +28,7 @@
 #include "score/crypto/src/daemon/data_manager/i_data_manager.hpp"
 #include "score/crypto/src/daemon/data_plane/i_shm_registry.hpp"
 #include "score/crypto/src/daemon/provider/provider_manager.hpp"
+#include "score/crypto/types/common.hpp"
 
 namespace score::crypto::daemon::mediator
 {

@@ -14,7 +14,6 @@
 #ifndef SCORE_CRYPTO_SRC_DAEMON_KEY_MANAGEMENT_KEY_MANAGEMENT_MODULE_HPP
 #define SCORE_CRYPTO_SRC_DAEMON_KEY_MANAGEMENT_KEY_MANAGEMENT_MODULE_HPP
 
-#include "score/crypto/src/api/types/common.hpp"
 #include "score/crypto/src/daemon/common/context/i_mediator_registrar.hpp"
 #include "score/crypto/src/daemon/common/context/keyed_registry.hpp"
 #include "score/crypto/src/daemon/config/inc/config.hpp"
@@ -22,6 +21,7 @@
 #include "score/crypto/src/daemon/key_management/core/key_management_service.hpp"
 #include "score/crypto/src/daemon/key_management/slot/slot_registry.hpp"
 #include "score/crypto/src/daemon/provider/provider_manager.hpp"
+#include "score/crypto/types/common.hpp"
 
 #include <memory>
 #include <string_view>
