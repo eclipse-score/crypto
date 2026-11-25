@@ -19,6 +19,7 @@ Module
    :id: mod__crypto_module
    :version: 1
    :status: invalid
+   :maturity: preview
    :includes: comp__crypto, comp__crypto_daemon, comp__cryptoki, comp__pqc_provider
 
 .. mod_view_sta:: Crypto Module Static View
