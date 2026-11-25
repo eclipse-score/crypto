@@ -263,6 +263,9 @@ bazel_dep(name = "score_baselibs", version = "0.2.18")
 # score communication
 bazel_dep(name = "score_communication", version = "0.6.0")
 
+# score lifecycle (lifecycle client for the crypto daemon)
+bazel_dep(name = "score_lifecycle", version = "0.10.1")
+
 # score logging
 bazel_dep(name = "score_logging", version = "0.2.4")
 

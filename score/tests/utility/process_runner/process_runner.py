@@ -67,6 +67,8 @@ class ProcessRunner:
         self._env = env or {}
         self._args = args or []
         self._pid: str | None = None
+        self._pid_file = Path(f"{log_file}.pid")
+        self._exit_file = Path(f"{log_file}.exit")
 
     def _find_pid_by_name(self) -> str | None:
         if self._target_os == "QNX":
@@ -79,7 +81,8 @@ class ProcessRunner:
             if exit_code != 0 or not lines:
                 return None
             return lines[0].split()[0]
-        exit_code, output = self._target.execute(f"pgrep -f '{self._binary}'")
+        # Anchored, so the wrapper shell from start(), whose command line also names the binary, does not match.
+        exit_code, output = self._target.execute(f"pgrep -f '^{self._binary}'")
         lines = output.decode().strip().splitlines()
         if exit_code != 0 or not lines:
             return None
@@ -105,19 +108,27 @@ class ProcessRunner:
     def start(self) -> bool:
         """Start the process in the background.
 
+        A wrapper shell waits for the process and writes its exit status, which ``exit_code()`` reads.
+
         Returns:
             True if the process started and its PID was found, False otherwise.
         """
         self._clean_log()
+        self._target.execute(f"rm -f {self._pid_file} {self._exit_file}")
         env_str = " ".join(f"{k}={v}" for k, v in self._env.items())
         args_str = shlex.join(self._args)
-        cmd = f"nohup env {env_str} {self._binary} {args_str} > {self._log_file} 2>&1 & echo $!"
+        wrapper = (
+            f"env {env_str} {self._binary} {args_str} > {self._log_file} 2>&1 & "
+            f"echo $! > {self._pid_file}; wait $!; echo $? > {self._exit_file}"
+        )
+        cmd = f"nohup sh -c {shlex.quote(wrapper)} > /dev/null 2>&1 &"
         exit_code, output = self._target.execute(cmd)
         if exit_code != 0:
             logger.error(f"Failed to start process: {output.decode()}")
             return False
 
         time.sleep(_STARTUP_POLL_INTERVAL_S)
+        _, output = self._target.execute(f"cat {self._pid_file}")
         pid_lines = [line.strip() for line in output.decode().splitlines() if line.strip().isdigit()]
         self._pid = pid_lines[-1] if pid_lines else None
         if self._pid is not None:
@@ -158,6 +169,23 @@ class ProcessRunner:
         self._target.execute(f"kill -9 {self._pid}")
         logger.info(f"Force-killed '{self._binary}' with SIGKILL after {timeout}s")
         return False
+
+    def exit_code(self, timeout: float = 2.0) -> int | None:
+        """Return the exit status of a process launched with ``start()``.
+
+        Args:
+            timeout: Seconds to wait for the wrapper shell to write the status after the process exits.
+
+        Returns:
+            The exit status, or None if no status was written within ``timeout``.
+        """
+        for _ in range(int(timeout * 10)):
+            exit_code, output = self._target.execute(f"cat {self._exit_file}")
+            status = output.decode().strip()
+            if exit_code == 0 and status.isdigit():
+                return int(status)
+            time.sleep(0.1)
+        return None
 
     def get_log_contents(self) -> str:
         """Return the contents of the remote log file.
