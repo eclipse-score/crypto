@@ -105,7 +105,9 @@ A subsystem registers all of its entries in one call, as an ``IMediatorRegistrar
 registrar, builds the handler selector, which holds the provider arbiter and the
 context-factory registry, and the context assembler once, and hands them to the
 mediator. The daemon passes the subsystems and holds no registry
-logic, and the mediator package names no subsystem.
+logic. ``IMediator`` and ``MediatorDependencies`` name no subsystem. Key
+management stays a direct collaborator of the provider arbiter, for key
+affinity, and of the context assembler, for key authorization.
 
 The mediator is created once and serves every connection. It holds no state of its
 own, only the shared collaborators and the read-only registries, so concurrent

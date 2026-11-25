@@ -35,6 +35,11 @@ class KeySlotResourceResolver final : public common::IResourceResolver
     explicit KeySlotResourceResolver(KeyManagementService::Sptr km_service) noexcept;
 
     /// @brief Resolve a key-slot name for a client and write its handle to the response.
+    /// @param client_id Client requesting the key slot; its access to the slot is checked.
+    /// @param session_id Session in which the slot is resolved; not used for key slots.
+    /// @param resource_name Application-defined key-slot name.
+    /// @param op_id Identifier of the resolution operation.
+    /// @param responseBuilder Builder receiving the slot handle, or the key management error as its public code.
     /// @return True if the name resolved to a key slot.
     [[nodiscard]] bool Resolve(std::uint64_t client_id,
                                std::uint64_t session_id,

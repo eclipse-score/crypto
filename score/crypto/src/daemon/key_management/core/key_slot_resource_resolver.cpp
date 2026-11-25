@@ -13,6 +13,8 @@
 
 #include "score/crypto/src/daemon/key_management/core/key_slot_resource_resolver.hpp"
 
+#include "score/crypto/src/daemon/common/daemon_error.hpp"
+
 #include "score/crypto/common/error_domain.hpp"
 #include "score/crypto/types/common.hpp"
 
@@ -37,7 +39,8 @@ bool KeySlotResourceResolver::Resolve(std::uint64_t client_id,
     auto node_id_result = m_km_service->ResolveKeySlot(resource_name, client_id);
     if (!node_id_result.has_value())
     {
-        responseBuilder.operation(op_id).return_error(score::crypto::CryptoErrorCode::kInternalError);
+        responseBuilder.operation(op_id).return_error(
+            score::crypto::daemon::common::ToCryptoErrorCode(node_id_result.error()));
         return false;
     }
 

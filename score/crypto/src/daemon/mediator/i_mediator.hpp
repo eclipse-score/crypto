@@ -47,12 +47,19 @@ using common::ResourceResolverRegistry;
 /// treated as empty. The selector and assembler are required for context creation.
 struct MediatorDependencies
 {
+    /// Data nodes of every client: contexts, resolved resources and shared-memory objects.
     daemon::data_manager::IDataManager::Sptr data_manager;
+    /// Registered providers; used to select the provider of a shared-memory object.
     daemon::provider::ProviderManager::Sptr provider_manager;
+    /// Shared-memory quota bookkeeping, shared by every connection.
     daemon::data_plane::IShmRegistry::Sptr shm_registry;
+    /// Resolver for each resource type of RESOLVE_RESOURCE; null is treated as empty.
     std::shared_ptr<const ResourceResolverRegistry> resource_resolvers;
+    /// Query for each mediator operation code the mediator does not implement; null is treated as empty.
     std::shared_ptr<const MediatorQueryRegistry> mediator_queries;
+    /// Chooses the handler of a new context, from a registered factory or a provider. Required.
     std::shared_ptr<const HandlerSelector> handler_selector;
+    /// Creates the context node, binds the key and initializes the handler. Required.
     std::shared_ptr<const ContextAssembler> assembler;
 };
 
@@ -80,6 +87,9 @@ std::shared_ptr<const Registry> OrEmpty(std::shared_ptr<const Registry> registry
 class IMediator : public score::crypto::daemon::control_plane::IRequestHandler
 {
   public:
+    /// @brief Take over the collaborators of the mediator.
+    /// @param deps Collaborators; a null registry is replaced by an empty one, while the handler selector and the
+    ///             assembler must not be null.
     explicit IMediator(MediatorDependencies deps)
         : m_data_manager(std::move(deps.data_manager)),
           m_provider_manager(std::move(deps.provider_manager)),
