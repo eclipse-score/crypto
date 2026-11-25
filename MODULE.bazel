@@ -269,9 +269,6 @@ git_override(
 bazel_dep(name = "score_baselibs", version = "0.2.18")
 bazel_dep(name = "flatbuffers", version = "25.12.19.bcr.1")  # same version score_baselibs pins; needed for @flatbuffers//:flatc
 
-# Direct flatbuffers dep: needed for @flatbuffers//:flatc in //score/crypto/src/daemon/config
-bazel_dep(name = "flatbuffers", version = "25.12.19.bcr.1")  # same version score_baselibs pins
-
 # score communication
 bazel_dep(name = "score_communication", version = "0.6.0")
 
