@@ -114,14 +114,16 @@ and the Security Interest Group (SEC IG).
 
 ### Backend-specific schemas
 
-What is the rationale for enforcing a common interface across additional
-FlatBuffers schemas, including the PKCS11 backend schema? How should this relate
-to the algorithm information already held by key slots?
+Does backend schema need to be based on a common interface ? What is the rationale for enforcing a common interface across additional FlatBuffers schemas, including the PKCS11 backend schema?
 
 ### Binary filename conventions
 
 The generated FlatBuffer binary filename is set by the Bazel rule. No common
 naming convention has been defined yet.
+
+## Distributor specific extentions
+
+How shall ``.fbs`` maintained in score be kept in a way to be easily extendable by the distributors ? 
 
 ## References
 
