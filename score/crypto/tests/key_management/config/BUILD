@@ -11,12 +11,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 
-load("@score_baselibs//score/flatbuffers/bazel:tools.bzl", "serialize_buffer")
+load("//score/crypto/src/daemon/config:crypto_config.bzl", "crypto_config_binary")
 
-serialize_buffer(
+crypto_config_binary(
     name = "generate_key_management_test_config",
     data = "key_management_test_config.json",
-    schema = "//score/crypto/src/daemon/config:crypto_config_fbs_schema",
     output = "key_management_test_config.bin",
     visibility = ["//:__subpackages__"],
 )

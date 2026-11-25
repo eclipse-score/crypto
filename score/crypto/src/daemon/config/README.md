@@ -17,8 +17,8 @@
 
 1. The FlatBuffers schema file  present in ``score/crypto/src/daemon/config/crypto_config.fbs`` is the single source of truth.
 2. Decision on seletioon of schema between fbs and json file is pending at score level. In order to Convert the `.fbs` to a JSON Schema. Use `bazel build //score/crypto/src/daemon/config:crypto_fbs_to_json_schema`.
-4. Validate the JSON config against the JSON Schema : defered for now, is already handled by point 5 below.
-5. Generate a FlatBuffers binary from the `.fbs` and the JSON config : accomplished by using ``flatc`` command, bazel rule is invoking it in the repo. ex. ``bazel build //score/crypto/tests/key_management/config:generate_key_management_test_config``
+4. Use `crypto_config_binary` from `//score/crypto/src/daemon/config:crypto_config.bzl` for daemon configuration binaries. It validates the JSON against the freshly generated JSON Schema as a required build action; invalid configurations stop the build.
+5. After validation, the macro passes the unchanged JSON and the FlatBuffers schema to `flatc` to generate the binary, for example through `bazel build //score/crypto/tests/key_management/config:generate_key_management_test_config`. JSON Schema does not replace the FlatBuffers schema for serialization.
 
 ### Open points
 
@@ -48,3 +48,10 @@ Goals of Config Parser
 Stakeholder requirements
 ========================
 1. Decisioon record : https://eclipse-score.github.io/score/main/features/configuration/config_model/index.html#doc__configuration_model
+
+
+Important Notes
+================
+
+The JSON Schema validation rule in `bazel/tools/json_schema_validator.bzl` was copied from the communication repository and extended locally. The schema-export script `generate_schema.py` and the validate-before-serialize macro `crypto_config.bzl` are crypto-specific additions, not verbatim copies. A better approach is to expose the common generation and validation tooling through shared Bazel dependencies, such as `score_baselibs` or `score_tooling`, and reuse it in both repositories instead of maintaining copied implementations.
+

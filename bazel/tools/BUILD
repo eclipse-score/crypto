@@ -11,4 +11,17 @@
 # SPDX-License-Identifier: Apache-2.0
 # *******************************************************************************
 
-exports_files(["json_schema_validator.bzl"])
+load("@rules_python//python:defs.bzl", "py_binary")
+
+exports_files([
+	"json_schema_validator.bzl",
+	"schema_requirements.txt",
+])
+
+py_binary(
+	name = "json_schema_validator",
+	srcs = ["json_schema_validator.py"],
+	tags = ["manual"],
+	visibility = ["//visibility:public"],
+	deps = ["@crypto_schema_deps//jsonschema_rs"],
+)

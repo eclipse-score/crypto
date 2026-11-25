@@ -17,6 +17,38 @@ Creates "validate_json_schema_test" test rule which validates the input "json" f
 
 visibility(["//..."])
 
+def _validate_json_impl(ctx):
+    validated = ctx.actions.declare_file(ctx.label.name + "/" + ctx.file.json.basename)
+    ctx.actions.run_shell(
+        inputs = [ctx.file.json, ctx.file.schema],
+        tools = [ctx.attr._validator[DefaultInfo].files_to_run],
+        outputs = [validated],
+        arguments = [
+            ctx.executable._validator.path,
+            ctx.file.schema.path,
+            ctx.file.json.path,
+            validated.path,
+        ],
+        command = '"$1" "$2" < "$3" && cp "$3" "$4"',
+        mnemonic = "ValidateJsonSchema",
+        progress_message = "Validating JSON configuration %s" % ctx.file.json.short_path,
+    )
+    return [DefaultInfo(files = depset([validated]))]
+
+validate_json = rule(
+    implementation = _validate_json_impl,
+    doc = "Produces an unchanged JSON copy only after successful JSON Schema validation.",
+    attrs = {
+        "json": attr.label(allow_single_file = [".json"], mandatory = True),
+        "schema": attr.label(allow_single_file = [".json"], mandatory = True),
+        "_validator": attr.label(
+            default = Label("//bazel/tools:json_schema_validator"),
+            executable = True,
+            cfg = "exec",
+        ),
+    },
+)
+
 def _impl(ctx):
     script = """
     readonly expected_failure={expected_failure}
@@ -60,7 +92,7 @@ validate_json_schema_test = rule(
             mandatory = True,
         ),
         "_validator": attr.label(
-            default = Label("@json_schema_validator"),
+            default = Label("//bazel/tools:json_schema_validator"),
             allow_single_file = True,
             executable = True,
             cfg = "exec",

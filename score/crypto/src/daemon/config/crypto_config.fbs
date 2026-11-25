@@ -18,7 +18,7 @@ file_identifier "CCFG";  // Crypto Configuration
 namespace score.crypto.daemon.config.flatbuf;
 
 // ---------------------------------------------------------------------------
-// Key slot configuration (existing)
+// Key slot configuration
 // ---------------------------------------------------------------------------
 
 /// Lifecycle metadata of a key slot

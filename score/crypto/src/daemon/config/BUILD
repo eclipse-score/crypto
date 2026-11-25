@@ -12,6 +12,7 @@
 # *******************************************************************************
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_python//python:defs.bzl", "py_binary")
 load("@score_baselibs//score/flatbuffers/bazel:codegen.bzl", "generate_cpp")
 
 # Export FlatBuffers schema for use by tests
@@ -23,8 +24,8 @@ filegroup(
 
 generate_cpp(
     name = "generated_crypto_config",
-    schema = "crypto_config_fbs_schema",
     output = "crypto_config_generated.h",
+    schema = "crypto_config_fbs_schema",
 )
 
 # Generate and post-process JSON Schema from the .fbs in one step.
@@ -45,12 +46,21 @@ genrule(
         $(location @score_baselibs//score/flatbuffers/bazel:schema_generator) --raw-schema $$tmp/crypto_config.schema.json --output $@
     """,
     tools = [
-        "@score_baselibs//score/flatbuffers/bazel:schema_generator",
         "@flatbuffers//:flatc",
+        "@score_baselibs//score/flatbuffers/bazel:schema_generator",
     ],
     visibility = ["//visibility:public"],
 )
 
+# Explicit source-tree update; normal builds keep their outputs in bazel-out.
+py_binary(
+    name = "generate_schema",
+    srcs = ["generate_schema.py"],
+    args = ["$(location :crypto_fbs_to_json_schema)"],
+    data = [":crypto_fbs_to_json_schema"],
+    main = "generate_schema.py",
+    target_compatible_with = ["@platforms//os:linux"],
+)
 
 # Configuration types and structures (headers only)
 cc_library(
@@ -92,8 +102,8 @@ cc_library(
         ":config_types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
-        "@score_baselibs//score/mw/log",
         "@score_baselibs//score/flatbuffers:flatbufferscpp",
+        "@score_baselibs//score/mw/log",
     ],
 )
 

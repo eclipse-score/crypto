@@ -23,6 +23,14 @@ python.toolchain(
     python_version = PYTHON_VERSION,
 )
 
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "crypto_schema_deps",
+    python_version = PYTHON_VERSION,
+    requirements_lock = "//bazel/tools:schema_requirements.txt",
+)
+use_repo(pip, "crypto_schema_deps")
+
 # Foreign CC rules for building projects with external build systems (make, cmake, etc.)
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 
