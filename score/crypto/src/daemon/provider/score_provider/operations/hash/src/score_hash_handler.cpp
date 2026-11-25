@@ -60,29 +60,22 @@ Expected<std::monostate, DaemonErrorCode> ScoreHashHandler::UpdateHash(
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<ResponseParameters, DaemonErrorCode> ScoreHashHandler::FinalizeHash(
+Expected<std::size_t, DaemonErrorCode> ScoreHashHandler::FinalizeHash(
     const score::cpp::span<std::uint8_t> /*hashOutput*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<ResponseParameters, DaemonErrorCode> ScoreHashHandler::SingleShotHash(
+Expected<std::size_t, DaemonErrorCode> ScoreHashHandler::SingleShotHash(
     const score::cpp::span<const std::uint8_t> /*dataToHash*/,
     const score::cpp::span<std::uint8_t> /*outputHash*/)
 {
     return make_unexpected(DaemonErrorCode::kUnsupportedOperation);
 }
 
-Expected<ResponseParameters, DaemonErrorCode> ScoreHashHandler::GetDigestSize() const
+std::size_t ScoreHashHandler::GetDigestSize() const noexcept
 {
-    if (m_algorithm.category != AlgorithmCategory::kHash)
-    {
-        return make_unexpected(DaemonErrorCode::kUnsupportedAlgorithm);
-    }
-
-    ResponseParameters response;
-    response.push_back(static_cast<std::uint64_t>(m_algorithm.output_size));
-    return response;
+    return (m_algorithm.category == AlgorithmCategory::kHash) ? m_algorithm.output_size : 0U;
 }
 
 }  // namespace score::crypto::daemon::provider::score_provider::operations::hash

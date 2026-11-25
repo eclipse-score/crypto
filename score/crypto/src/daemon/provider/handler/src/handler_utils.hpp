@@ -123,6 +123,11 @@ template <typename T>
     const common::RequestParameters& parameters,
     std::size_t expected_count) noexcept;
 
+/// @brief Turn a handler's byte count into the one-element response the client reads.
+/// @return The response holding the count as uint64_t, or the handler's error unchanged.
+[[nodiscard]] Expected<common::ResponseParameters, ::score::crypto::daemon::common::DaemonErrorCode> ToSizeResponse(
+    const Expected<std::size_t, ::score::crypto::daemon::common::DaemonErrorCode>& size);
+
 using StreamOperation = ::score::crypto::daemon::provider::handler::StreamOperation;
 
 /// @brief Validate a streaming operation using the standard state transitions.

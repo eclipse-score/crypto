@@ -30,7 +30,6 @@ namespace score::crypto::daemon::provider::score_provider::openssl::handler
 
 // Using declarations for convenience
 using common::DaemonErrorCode;
-using common::ResponseParameters;
 using common::StreamOperationState;
 
 bool OpenSslHashHandler::IsAlgorithmSupported(const AlgorithmDescriptor& algorithm) noexcept
@@ -149,8 +148,7 @@ Expected<std::monostate, DaemonErrorCode> OpenSslHashHandler::UpdateHash(
     return std::monostate{};
 }
 
-Expected<common::ResponseParameters, DaemonErrorCode> OpenSslHashHandler::FinalizeHash(
-    const score::cpp::span<std::uint8_t> hashOutput)
+Expected<std::size_t, DaemonErrorCode> OpenSslHashHandler::FinalizeHash(const score::cpp::span<std::uint8_t> hashOutput)
 {
     if (mCurrentStreamContext == nullptr)
     {
@@ -185,12 +183,10 @@ Expected<common::ResponseParameters, DaemonErrorCode> OpenSslHashHandler::Finali
     // Clean up the context
     CleanupStreamContext();
 
-    common::ResponseParameters response;
-    response.push_back(static_cast<uint64_t>(digestLen));
-    return response;
+    return static_cast<std::size_t>(digestLen);
 }
 
-Expected<common::ResponseParameters, DaemonErrorCode> OpenSslHashHandler::SingleShotHash(
+Expected<std::size_t, DaemonErrorCode> OpenSslHashHandler::SingleShotHash(
     const score::cpp::span<const std::uint8_t> dataToHash,
     const score::cpp::span<std::uint8_t> outputHash)
 {
@@ -227,9 +223,7 @@ Expected<common::ResponseParameters, DaemonErrorCode> OpenSslHashHandler::Single
         return make_unexpected(DaemonErrorCode::kAlgorithmExecutionFailed);
     }
 
-    common::ResponseParameters response;
-    response.push_back(static_cast<uint64_t>(digestLen));
-    return response;
+    return static_cast<std::size_t>(digestLen);
 }
 
 }  // namespace score::crypto::daemon::provider::score_provider::openssl::handler

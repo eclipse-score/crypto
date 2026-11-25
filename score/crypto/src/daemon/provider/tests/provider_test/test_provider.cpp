@@ -225,7 +225,12 @@ TEST_P(ProviderHashAlgorithmTest, SupportsSingleShotStreamingResetAndDigestSize)
     common::RequestParameters finalizeRequest{
         score::cpp::span<std::uint8_t>{streamingOutput.data(), streamingOutput.size()},
     };
-    ASSERT_TRUE(hashHandler->Execute(MakeHashOp(ops::HASH_FINALIZE), finalizeRequest).has_value());
+    const auto finalizeResult = hashHandler->Execute(MakeHashOp(ops::HASH_FINALIZE), finalizeRequest);
+    ASSERT_TRUE(finalizeResult.has_value());
+    ASSERT_EQ(finalizeResult.value().size(), 1U);
+    const auto* finalizeWritten = std::get_if<std::uint64_t>(&finalizeResult.value().front());
+    ASSERT_NE(finalizeWritten, nullptr);
+    EXPECT_EQ(*finalizeWritten, testData.digest_size);
     EXPECT_EQ(streamingOutput, expectedHello);
 
     ASSERT_TRUE(hashHandler->Execute(MakeHashOp(ops::HASH_INIT), initRequest).has_value());

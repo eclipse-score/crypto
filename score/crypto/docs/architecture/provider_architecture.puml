@@ -128,7 +128,7 @@ package "Provider Infrastructure (provider/)" <<Rectangle>> #F5F5F5 {
             abstract class ScoreHashHandler {
                 #InitHash(...) : Result<void>
                 #UpdateHash(...) : Result<void>
-                #FinalizeHash(...) : Result<void>
+                #FinalizeHash(...) : Result<size_t>
                 -m_executor : HashExecutor
             }
             ScoreHashHandler .up.|> IHandler
@@ -136,7 +136,8 @@ package "Provider Infrastructure (provider/)" <<Rectangle>> #F5F5F5 {
             abstract class ScoreMacHandler {
                 #InitMac(...) : Result<void>
                 #UpdateMac(...) : Result<void>
-                #FinalizeMac(...) : Result<void>
+                #FinalizeMac(...) : Result<size_t>
+                #SingleShotMac(...) : Result<size_t>
                 -m_executor : MacExecutor
             }
             ScoreMacHandler .up.|> IHandler

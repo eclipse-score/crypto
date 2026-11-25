@@ -42,7 +42,7 @@ using OperationAction = common::OperationAction;
 
 // MAC_INIT
 // Request:  data_node_id = context_id,
-//           param[0]: optional DataBuffer — initial data or IV
+//           param[0]: optional DataBuffer — IV, absent for algorithms that take none (HMAC rejects one)
 // Response: status_code (SUCCESS/error)
 //           no output parameters
 // Effect:   Calls InitMac(), initializes MAC stream context, transitions state IDLE → INITIALIZED
@@ -60,7 +60,7 @@ inline constexpr OperationAction MAC_UPDATE = 2;
 
 // MAC_FINALIZE
 // Request:  data_node_id = context_id,
-//           param[0]: optional DataBuffer — output buffer for MAC tag (modified in-place, must be SHM region)
+//           param[0]: DataBuffer — output buffer for MAC tag (modified in-place, must be SHM region)
 //           param[1]: optional DataBuffer — final data chunk to include
 // Response: status_code (SUCCESS/error)
 //           param[0]: uint64_t — MAC tag length in bytes (MAC bytes written to request param[0])
@@ -92,7 +92,13 @@ inline constexpr OperationAction MAC_GET_SIZE = 5;
 // Effect:   Calls Reset(), clears intermediate MAC state, transitions state → IDLE
 inline constexpr OperationAction MAC_RESET = 6;
 
-// MAC_SS -> TODO TBD
+// MAC_SS (Single-Shot MAC)
+// Request:  data_node_id = context_id,
+//           param[0]: DataBuffer — data to MAC
+//           param[1]: DataBuffer — output buffer for MAC tag (modified in-place)
+// Response: status_code (SUCCESS/error)
+//           param[0]: uint64_t — MAC tag length in bytes (MAC bytes written to request param[1])
+// Effect:   Calls SingleShotMac(), computes the MAC in one provider call, transitions state → IDLE
 inline constexpr OperationAction MAC_SS = 7;
 
 inline constexpr OperationAction MAC_CUSTOM_OP_START = 1 << (std::numeric_limits<OperationAction>::digits - 1);

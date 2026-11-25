@@ -94,22 +94,30 @@ class ScoreMacHandler : public handler::Handler
     /// @brief Get the MAC tag size for the current algorithm.
     [[nodiscard]] virtual std::size_t GetMacSize() const noexcept;
 
-    /// @brief Initialize the MAC stream context with the cached key.
+    /// @brief Initialize the MAC stream context with the bound key.
+    /// @param iv Absent for MAC algorithms that take no IV.
     [[nodiscard]] virtual Expected<std::monostate, common::DaemonErrorCode> InitMac(
-        const std::optional<common::RequestParameter> initialDataOrIV);
+        std::optional<score::cpp::span<const std::uint8_t>> iv);
 
-    /// @brief Add data to the active MAC stream.
+    /// @brief Add a data chunk to the active MAC stream.
     [[nodiscard]] virtual Expected<std::monostate, common::DaemonErrorCode> UpdateMac(
-        const common::RequestParameter& dataToMac);
+        score::cpp::span<const std::uint8_t> data);
 
-    /// @brief Finalize the MAC and produce the tag.
-    [[nodiscard]] virtual Expected<common::ResponseParameters, common::DaemonErrorCode> FinalizeMac(
-        std::optional<common::RequestParameter> macOutput,
-        const std::optional<common::RequestParameter> finalDataToMac);
+    /// @brief Finish the stream and write the tag into the caller's buffer.
+    /// @return Bytes written.
+    [[nodiscard]] virtual Expected<std::size_t, common::DaemonErrorCode> FinalizeMac(
+        score::cpp::span<std::uint8_t> tag);
 
-    /// @brief Verify a MAC tag using constant-time comparison.
+    /// @brief Finish the stream and compare its tag with @p expected_tag in constant time.
+    /// @return false on a mismatch, which is not an error.
     [[nodiscard]] virtual Expected<bool, common::DaemonErrorCode> VerifyMac(
-        const common::RequestParameter& expectedTag);
+        score::cpp::span<const std::uint8_t> expected_tag);
+
+    /// @brief Compute the tag over @p data in one call, without a streaming sequence.
+    /// @return Bytes written.
+    [[nodiscard]] virtual Expected<std::size_t, common::DaemonErrorCode> SingleShotMac(
+        score::cpp::span<const std::uint8_t> data,
+        score::cpp::span<std::uint8_t> tag);
 
   protected:
     AlgorithmDescriptor m_algorithm;

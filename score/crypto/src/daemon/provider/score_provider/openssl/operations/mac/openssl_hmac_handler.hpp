@@ -63,18 +63,19 @@ class OpenSslHmacHandler final
     // -----------------------------------------------------------------------
 
     [[nodiscard]] ::score::crypto::Expected<std::monostate, ::score::crypto::daemon::common::DaemonErrorCode> InitMac(
-        const std::optional<common::RequestParameter> initialDataOrIV) override;
+        std::optional<score::cpp::span<const std::uint8_t>> iv) override;
 
     [[nodiscard]] ::score::crypto::Expected<std::monostate, ::score::crypto::daemon::common::DaemonErrorCode> UpdateMac(
-        const common::RequestParameter& dataToMac) override;
+        score::cpp::span<const std::uint8_t> data) override;
 
-    [[nodiscard]] ::score::crypto::Expected<common::ResponseParameters,
-                                            ::score::crypto::daemon::common::DaemonErrorCode>
-    FinalizeMac(std::optional<common::RequestParameter> macOutput,
-                const std::optional<common::RequestParameter> finalDataToMac) override;
+    [[nodiscard]] ::score::crypto::Expected<std::size_t, ::score::crypto::daemon::common::DaemonErrorCode> FinalizeMac(
+        score::cpp::span<std::uint8_t> tag) override;
 
     [[nodiscard]] ::score::crypto::Expected<bool, ::score::crypto::daemon::common::DaemonErrorCode> VerifyMac(
-        const common::RequestParameter& expectedTag) override;
+        score::cpp::span<const std::uint8_t> expected_tag) override;
+
+    [[nodiscard]] ::score::crypto::Expected<std::size_t, ::score::crypto::daemon::common::DaemonErrorCode>
+    SingleShotMac(score::cpp::span<const std::uint8_t> data, score::cpp::span<std::uint8_t> tag) override;
 
     [[nodiscard]] std::size_t GetMacSize() const noexcept override;
 
@@ -86,9 +87,17 @@ class OpenSslHmacHandler final
     ///        expected by EVP_MAC (e.g. "SHA256").
     [[nodiscard]] const char* GetDigestName() const noexcept;
 
-    /// @brief Retrieve the bound key's raw bytes.
-    /// @return true if key material is available, false if no key is bound.
-    [[nodiscard]] bool GetBoundKeyMaterial(const uint8_t*& key_bytes, std::size_t& key_len) const noexcept;
+    /// @brief Raw bytes of the bound key and the digest name EVP_MAC expects for it.
+    struct BoundKey
+    {
+        const std::uint8_t* bytes{nullptr};
+        std::size_t length{0U};
+        const char* digest_name{nullptr};
+    };
+
+    /// @return kStreamNotInitialized when no usable key is bound, kUnsupportedAlgorithm for an unknown digest.
+    [[nodiscard]] ::score::crypto::Expected<BoundKey, ::score::crypto::daemon::common::DaemonErrorCode> ResolveKey()
+        const noexcept;
 
     /// @brief Destroy and zero the EVP_MAC context.
     void CleanupContext() noexcept;
@@ -96,8 +105,10 @@ class OpenSslHmacHandler final
     /// @brief Allocate (or resize) the internal output buffer.
     void AllocateOutputBuffer(std::size_t size);
 
-    [[nodiscard]] ::score::crypto::Expected<std::monostate, ::score::crypto::daemon::common::DaemonErrorCode>
-    FinalizeMacInternal(uint8_t* output_buf, std::size_t buf_len, std::size_t& out_len);
+    /// @brief Finish the stream on m_ctx into @p tag and return the stream to IDLE.
+    /// @return Bytes written.
+    [[nodiscard]] ::score::crypto::Expected<std::size_t, ::score::crypto::daemon::common::DaemonErrorCode>
+    FinalizeMacInternal(score::cpp::span<std::uint8_t> tag);
 
     EVP_MAC* m_mac{nullptr};
     EVP_MAC_CTX* m_ctx{nullptr};
