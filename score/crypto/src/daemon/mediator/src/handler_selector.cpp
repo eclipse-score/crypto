@@ -14,6 +14,7 @@
 #include "score/crypto/src/daemon/mediator/src/handler_selector.hpp"
 
 #include "score/crypto/src/daemon/common/context/i_context_factory.hpp"
+#include "score/crypto/src/daemon/common/context/keyed_registry.hpp"
 #include "score/crypto/src/daemon/common/daemon_error.hpp"
 
 #include "score/mw/log/logging.h"
@@ -25,7 +26,7 @@ namespace score::crypto::daemon::mediator
 
 HandlerSelector::HandlerSelector(std::shared_ptr<const ProviderArbiter> arbiter,
                                  std::shared_ptr<const common::ContextFactoryRegistry> context_factories) noexcept
-    : m_arbiter(std::move(arbiter)), m_context_factories(std::move(context_factories))
+    : m_arbiter(std::move(arbiter)), m_context_factories(common::OrEmpty(std::move(context_factories)))
 {
 }
 

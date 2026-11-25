@@ -186,6 +186,7 @@ cc_library(
         "//score/crypto/src/daemon/common/context:context_registration",
         "//score/crypto/src/daemon/common/context:context_types",
         "//score/crypto/src/daemon/common/context:handler_headers",
+        "//score/crypto/src/daemon/common/context:keyed_registry",
         "//score/crypto/src/daemon/config",
         "//score/crypto/src/daemon/control_plane:request_handler_hdr",
         "//score/crypto/src/daemon/data_manager",

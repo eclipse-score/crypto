@@ -44,8 +44,9 @@ class HandlerSelector final
 {
   public:
     /// @brief Construct a selector over the provider arbiter and the subsystem factories.
-    /// @param arbiter Selects a provider for context types that no factory serves.
-    /// @param context_factories Factories keyed by the context type they serve.
+    /// @param arbiter Selects a provider for context types that no factory serves. Must not be null.
+    /// @param context_factories Factories keyed by the context type they serve. A null registry is
+    ///                          treated as empty, so every type is served by a provider.
     HandlerSelector(std::shared_ptr<const ProviderArbiter> arbiter,
                     std::shared_ptr<const common::ContextFactoryRegistry> context_factories) noexcept;
 

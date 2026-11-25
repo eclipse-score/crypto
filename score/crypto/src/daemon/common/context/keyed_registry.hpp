@@ -74,6 +74,18 @@ class KeyedRegistry final
     std::map<Key, EntryPtr, std::less<>> m_entries;
 };
 
+/// @brief Returns @p registry, or an empty registry when it is null.
+///
+/// Holders of a registry treat a registry that was not given as one with no entries.
+/// @tparam Registry Registry type; must be default-constructible.
+/// @param registry Registry to use; may be null.
+/// @return @p registry when it is not null, otherwise a new empty registry.
+template <typename Registry>
+[[nodiscard]] std::shared_ptr<const Registry> OrEmpty(std::shared_ptr<const Registry> registry)
+{
+    return registry ? std::move(registry) : std::make_shared<const Registry>();
+}
+
 }  // namespace score::crypto::daemon::common
 
 #endif  // SCORE_CRYPTO_SRC_DAEMON_COMMON_CONTEXT_KEYED_REGISTRY_HPP

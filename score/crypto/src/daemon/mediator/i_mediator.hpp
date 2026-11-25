@@ -63,18 +63,6 @@ struct MediatorDependencies
     std::shared_ptr<const ContextAssembler> assembler;
 };
 
-namespace detail
-{
-
-/// @brief Returns @p registry, or an empty registry when it is null.
-template <typename Registry>
-std::shared_ptr<const Registry> OrEmpty(std::shared_ptr<const Registry> registry)
-{
-    return registry ? std::move(registry) : std::make_shared<const Registry>();
-}
-
-}  // namespace detail
-
 /**
  * @interface IMediator
  * @brief Interface for mediating API requests in the crypto daemon.
@@ -94,8 +82,8 @@ class IMediator : public score::crypto::daemon::control_plane::IRequestHandler
         : m_data_manager(std::move(deps.data_manager)),
           m_provider_manager(std::move(deps.provider_manager)),
           m_shm_registry(std::move(deps.shm_registry)),
-          m_resource_resolvers(detail::OrEmpty(std::move(deps.resource_resolvers))),
-          m_mediator_queries(detail::OrEmpty(std::move(deps.mediator_queries))),
+          m_resource_resolvers(common::OrEmpty(std::move(deps.resource_resolvers))),
+          m_mediator_queries(common::OrEmpty(std::move(deps.mediator_queries))),
           m_handler_selector(std::move(deps.handler_selector)),
           m_assembler(std::move(deps.assembler))
     {

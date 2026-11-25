@@ -154,5 +154,28 @@ TEST_F(HandlerSelectorTest, TypeWithoutAFactoryIsServedByAProvider)
     EXPECT_EQ(provider->Factory()->CreateCalls(), 1);
 }
 
+TEST_F(HandlerSelectorTest, TypeWithoutAFactoryIsServedByAProviderWhenNoFactoryRegistryIsGiven)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__arbitration");
+    RecordProperty("Description",
+                   "A selector given no context-factory registry treats it as empty and serves the context type "
+                   "through a provider chosen by the arbiter.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    auto provider = std::make_shared<StubProvider>("SW", ProviderCapability::kCrypto);
+    ASSERT_TRUE(m_provider_manager->RegisterProvider("SW", provider, CryptoProviderType::SOFTWARE));
+    m_provider_manager->Initialize();
+    const HandlerSelector selector{std::make_shared<ProviderArbiter>(m_provider_manager, nullptr), nullptr};
+
+    const auto selection = selector.Select(kClient, ProviderRequest(common::context_types::kHash));
+
+    ASSERT_TRUE(selection.has_value());
+    EXPECT_NE(selection.value().handler, nullptr);
+    ASSERT_NE(selection.value().provider, nullptr);
+    EXPECT_EQ(selection.value().provider->GetProviderId(), provider->GetProviderId());
+    EXPECT_EQ(provider->Factory()->CreateCalls(), 1);
+}
+
 }  // namespace
 }  // namespace score::crypto::daemon::mediator
