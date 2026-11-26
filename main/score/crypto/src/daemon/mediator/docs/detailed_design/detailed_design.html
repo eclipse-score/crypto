@@ -512,7 +512,7 @@
                   
   <section id="mediator-detailed-design">
 <h1>Mediator Detailed Design<a class="headerlink" href="#mediator-detailed-design" title="Link to this heading">#</a></h1>
-<div class="need_container docutils container" id="SNCB-83699e6c">
+<div class="need_container docutils container" id="SNCB-eca40be1">
 <div class="pst-scrollable-table-container"><table class="need needs_grid_complex needs_layout_score needs_style_none needs_type_document table" id="doc__crypto_mediator_detailed_design">
 <tbody>
 <tr class="head row-odd"><td class="head_left" colspan="2"><div class="needs_head_left line-block">
@@ -567,15 +567,31 @@ their dependencies. The use cases below show how they interact.</p>
 <h3>Creating a context<a class="headerlink" href="#creating-a-context" title="Link to this heading">#</a></h3>
 <p>Decoding reports every failure as <code class="docutils literal notranslate"><span class="pre">kInvalidArgument</span></code> except an algorithm name
 the catalog does not know, which is <code class="docutils literal notranslate"><span class="pre">kUnsupportedAlgorithm</span></code>. The validation
-order is defined by the validation requirement.</p>
+order is defined by the validation requirement. After decoding, the handler selector
+chooses the handler. A context type with a registered factory is created by that
+factory; any other type is created through a provider chosen by the arbiter. A factory
+error is returned to the client and no node is created; a key reference on a
+factory-served type is refused with <code class="docutils literal notranslate"><span class="pre">kKeyOperationNotPermitted</span></code> and the factory is
+not called.</p>
 <p class="plantuml">
-<object data="../../../../../../../_images/plantuml-58ee71a0633532e5e7b1aa24e29770e88f3b1d64.svg" type="image/svg+xml" style="width:1470px;height:904px;background:#FFFFFF;"></object></p>
+<object data="../../../../../../../_images/plantuml-9665e40e57d472c5835c45061e748360e788c166.svg" type="image/svg+xml" style="width:1827px;height:1308px;background:#FFFFFF;"></object></p>
 </section>
 <section id="operating-on-and-closing-a-context">
 <h3>Operating on and closing a context<a class="headerlink" href="#operating-on-and-closing-a-context" title="Link to this heading">#</a></h3>
 <p class="plantuml">
 <object data="../../../../../../../_images/plantuml-39b2bf7f8a66142b5ef0e6aff611a7813efeb0f2.svg" type="image/svg+xml" style="width:898px;height:686px;background:#FFFFFF;"></object></p>
 </section>
+</section>
+<section id="registered-entries">
+<h2>Registered entries<a class="headerlink" href="#registered-entries" title="Link to this heading">#</a></h2>
+<p>The mediator hands an operation to a registered query only when it implements no
+handler for that operation code itself; a query at a built-in code is never called.
+An operation code with neither fails. A resource type with no registered resolver is
+<code class="docutils literal notranslate"><span class="pre">kUnsupportedOperation</span></code>.</p>
+<p>Creating the mediator fails with <code class="docutils literal notranslate"><span class="pre">kInternalError</span></code> if a registrar is null or reports
+a rejected registration, and with <code class="docutils literal notranslate"><span class="pre">kInvalidArgument</span></code> if the data manager or the
+provider manager is missing, which is checked before any registrar is called, or if a
+query is registered for a built-in operation code.</p>
 </section>
 <section id="fallback-policy">
 <h2>Fallback policy<a class="headerlink" href="#fallback-policy" title="Link to this heading">#</a></h2>
@@ -597,7 +613,8 @@ deployment configuration of the requesting user, not from the request.</p>
 </section>
 <section id="error-vocabulary">
 <h2>Error vocabulary<a class="headerlink" href="#error-vocabulary" title="Link to this heading">#</a></h2>
-<p>Decoding and arbitration report public error codes. Assembly and handler
+<p>Decoding, handler selection and arbitration report public error codes. A factory
+returns a daemon error code, which the selector translates. Assembly and handler
 initialization report daemon error codes. The response builder translates a daemon
 error code to the public code when it writes the response. Arbitration translates
 the daemon error that key-affinity resolution returns, because fallback
@@ -658,6 +675,7 @@ eligibility is defined on public codes.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#operating-on-and-closing-a-context">Operating on and closing a context</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#registered-entries">Registered entries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#fallback-policy">Fallback policy</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#shared-memory-provider-selection">Shared-memory provider selection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-vocabulary">Error vocabulary</a></li>

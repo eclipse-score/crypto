@@ -501,7 +501,7 @@
                   
   <section id="key-management-architecture">
 <span id="crypto-key-management-architecture"></span><h1>Key Management Architecture<a class="headerlink" href="#key-management-architecture" title="Link to this heading">#</a></h1>
-<div class="need_container docutils container" id="SNCB-2389eb18">
+<div class="need_container docutils container" id="SNCB-54e457ee">
 <div class="pst-scrollable-table-container"><table class="need needs_grid_complex needs_layout_score needs_style_none needs_type_comp table" id="comp__crypto_key_management">
 <tbody>
 <tr class="head row-odd"><td class="head_left" colspan="2"><div class="needs_head_left line-block">
@@ -644,7 +644,7 @@ injects the shared <code class="docutils literal notranslate"><span class="pre">
 <p>The following diagram shows the key class relationships:</p>
 <figure class="align-center" id="id4">
 <p class="plantuml">
-<object data="../../../../_images/plantuml-eb361b9b28b81906820c0a86d9764f5e126ecce1.svg" type="image/svg+xml" style="width:7785px;height:2846px;background:#FFFFFF;"></object></p>
+<object data="../../../../_images/plantuml-aa31b8687634a758d2f5e3da29baa39e7d48658f.svg" type="image/svg+xml" style="width:7785px;height:2838px;background:#FFFFFF;"></object></p>
 <figcaption>
 <p><span class="caption-number">Fig. 20 </span><span class="caption-text">Key Management — Class Diagram</span><a class="headerlink" href="#id4" title="Link to this image">#</a></p>
 </figcaption>
@@ -657,7 +657,7 @@ key generation, key load with deduplication, MAC context creation with key
 binding, MAC streaming, and crash cleanup:</p>
 <figure class="align-center" id="id5">
 <p class="plantuml">
-<object data="../../../../_images/plantuml-ca56e46ea27f0d5c556463619be54c382aa414c9.svg" type="image/svg+xml" style="width:5079px;height:812px;background:#FFFFFF;"></object></p>
+<object data="../../../../_images/plantuml-52ec1c489e87186b9fdc07222cda5af1b146b518.svg" type="image/svg+xml" style="width:5227px;height:812px;background:#FFFFFF;"></object></p>
 <figcaption>
 <p><span class="caption-number">Fig. 21 </span><span class="caption-text">Key Management — Sequence Diagrams</span><a class="headerlink" href="#id5" title="Link to this image">#</a></p>
 </figcaption>
@@ -673,8 +673,11 @@ release or client-crash cleanup.</p>
 <code class="docutils literal notranslate"><span class="pre">DataNodeId</span></code>:</p>
 <ol class="arabic simple">
 <li><p>The client sends <code class="docutils literal notranslate"><span class="pre">RESOLVE_RESOURCE(slot_name,</span> <span class="pre">kKeySlot)</span></code> to the mediator.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">MediatorImpl</span></code> calls <code class="docutils literal notranslate"><span class="pre">SlotRegistry::ResolveAppResource(slot_name,</span>
-<span class="pre">client_id)</span></code> which checks the UID-to-resource map and delegates to
+<li><p><code class="docutils literal notranslate"><span class="pre">MediatorImpl</span></code> hands the request to the resolver registered for <code class="docutils literal notranslate"><span class="pre">kKeySlot</span></code>,
+<code class="docutils literal notranslate"><span class="pre">KeySlotResourceResolver</span></code>, which the key management module registers when
+the mediator is created. The resolver asks <code class="docutils literal notranslate"><span class="pre">KeyManagementService</span></code> to resolve
+the name, and the service calls <code class="docutils literal notranslate"><span class="pre">SlotRegistry::ResolveAppResource(slot_name,</span>
+<span class="pre">client_id)</span></code>, which checks the UID-to-resource map and delegates to
 <code class="docutils literal notranslate"><span class="pre">ResolveSlot</span></code>.  <code class="docutils literal notranslate"><span class="pre">AccessPolicyEnforcer::CheckSlotAccess</span></code> validates that
 <code class="docutils literal notranslate"><span class="pre">client_id</span></code> is in the slot’s <code class="docutils literal notranslate"><span class="pre">allowed_uids</span></code> list.</p></li>
 <li><p>A <code class="docutils literal notranslate"><span class="pre">KeySlotDataNode(slot_handle,</span> <span class="pre">slot_registry)</span></code> is stored in the
