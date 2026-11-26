@@ -49,7 +49,7 @@ class IContextFactory
 
     /// @brief Create the handler for a validated request.
     /// @param request Validated CTX_CREATE request; its views are valid for the duration of the call.
-    /// @return The new handler, or the error returned to the client.
+    /// @return The new handler, never null, or the error returned to the client.
     [[nodiscard]] virtual Expected<Handler::Sptr, DaemonErrorCode> Create(const ContextCreationRequest& request) = 0;
 };
 

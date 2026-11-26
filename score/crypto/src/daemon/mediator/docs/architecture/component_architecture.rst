@@ -90,7 +90,7 @@ once, while the mediator is created, and is only read afterwards.
      - Key
      - Entry
    * - Context factories
-     - Full context type, such as ``CERT:MANAGEMENT``
+     - Full context type, matched exactly
      - Creates a new handler for each context of that type. Used for types that
        a subsystem serves itself, instead of a provider.
    * - Resource resolvers
