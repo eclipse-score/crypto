@@ -1,0 +1,254 @@
+' *******************************************************************************
+' Copyright (c) 2026 Contributors to the Eclipse Foundation
+'
+' See the NOTICE file(s) distributed with this work for additional
+' information regarding copyright ownership.
+'
+' This program and the accompanying materials are made available under the
+' terms of the Apache License Version 2.0 which is available at
+' https://www.apache.org/licenses/LICENSE-2.0
+'
+' SPDX-License-Identifier: Apache-2.0
+' *******************************************************************************
+
+@startuml csr_end_to_end
+title End-to-End CSR: Create Key, Bind and Choose Eager / Batch / DER Input
+scale max 3600*3900
+hide footbox
+autonumber
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam ArrowColor #46535E
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 260
+skinparam sequence {
+  LifeLineBorderColor #94A3B8
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #596B78
+  ParticipantFontColor #20313D
+  ActorBackgroundColor #FFFFFF
+  ActorBorderColor #596B78
+  GroupBorderColor #596B78
+  NoteBackgroundColor #FFF9DC
+  NoteBorderColor #C4A15C
+}
+
+actor Application as App
+box "Client process" #E8F1FF
+  participant "Crypto API\nstack, factory and context proxies" as Client
+end box
+box "Crypto daemon" #F4F7F9
+  participant "Mediator\ncontrol-plane dispatch" as Mediator
+  participant "HandlerSelector / ProviderArbiter\nand ContextAssembler" as Contexts
+  participant "KeyManagementExecutor\nprovider key-management context" as KeyExecutor
+  participant "KeyManagementService\nKeyRegistry / DataManager" as Keys
+  participant "CsrProcessingContextFactory\nregistered by CsrManagementModule" as CsrFactory
+  participant "ProviderManager\ndedicated kCsrProcessing capability" as Providers
+  participant "CsrProcessingContextHandler\nclient-owned context" as Processing
+  participant "CsrProcessingExecutor\nbackend-independent RPC contract" as Executor
+  participant "ICsrProcessor\nOpenSslCsrProcessor in this example" as Processor
+  participant "NativeCsrProcessing\nrequest-local helper" as Native
+  participant "OpenSSL provider\nkey factory + CSR handler" as Provider
+  participant "wire::Decode\nowned input snapshot" as DerWire
+  participant "PopulateRequestFromDer\nstrict Name / Extensions" as DerInput
+end box
+
+note over App, Provider
+  Successful software-provider path, including actual key creation.
+  The application receives a key reference, never private-key bytes.
+  Transport setup, error paths and repeated helper calls are summarized.
+  Generation shows success: validation errors return immediately without signing or publishing output.
+end note
+
+group 1. Connect and create a key-management context
+  App -> Client : CreateCryptoStack(config)\nthen CreateCryptoContext()
+  Client --> App : connected crypto context factory
+  App -> Client : CreateKeyManagementContext(key_config)\nprovider type = kSoftware
+  Client -> Mediator : CTX_CREATE(KEY:MANAGEMENT)
+  Mediator -> Contexts : select provider and assemble context\nno signing key required at this stage
+  Contexts -> Provider : create and initialize key-management handler
+  Provider --> Contexts : handler using KeyManagementExecutor
+  Contexts --> Mediator : key-management context_id
+  Mediator --> Client : context_id
+  Client --> App : IKeyManagementContext
+end
+
+opt 1a. Standalone helpers explicitly requested (not required by generation)
+  App -> Client : crypto_context.CreateCsrProcessingContext(config)
+  Client -> Mediator : CTX_CREATE(CSR:PROCESSING, empty algorithm)
+  Mediator -> Contexts : select registered context factory
+  Contexts -> CsrFactory : Create(validated request)
+  CsrFactory -> Providers : GetProviderForCapability(kCsrProcessing)\nsoftware-first; existing initialization rules
+  Providers --> CsrFactory : available capable IProvider
+  CsrFactory -> Provider : IProvider::GetCsrProcessor()
+  Provider --> CsrFactory : fresh abstract processor
+  CsrFactory -> Executor : construct with injected processor
+  Executor --> CsrFactory : executor
+  CsrFactory -> Processing : construct fresh handler with executor
+  Processing --> CsrFactory : handler
+  CsrFactory --> Contexts : handler
+  Contexts -> Processing : InitializeContext after adding ContextDataNode
+  Processing --> Contexts : initialization status
+  Contexts --> Mediator : processing_context_id
+  Mediator --> Client : processing_context_id
+  Client --> App : ICsrProcessingContext\ncompatible with ICsrProcessingService helpers
+  App -> Client : CsrSubject::FromDn(*processing_context, dn)\nor standalone extension/template helpers
+  Client -> Mediator : CSR_PROCESS on processing_context_id\nCSR handler actor 13 / action 4; SHM buffers
+  Mediator -> Processing : authenticate context ownership and forward
+  Processing -> Executor : Execute(input span, output span)
+  Executor -> Executor : validate exactly two spans; wire::Decode\nreject Generate and GenerateFromDer
+  Executor -> Processor : Process(owned Document)
+  Processor -> Native : reuse existing Process(document)
+  Native --> Processor : processed Document / native error
+  Processor --> Executor : Document / mapped daemon error
+  Executor -> Executor : wire::Encode; capacity check; allocate response\nthen copy output bytes
+  Executor --> Processing : SHM document + one uint64 written-byte count
+  Processing --> Mediator : processing result
+  Mediator --> Client : response
+  Client --> App : processed value
+  note right of CsrFactory
+    Only the factory is registered at daemon startup.
+    Contexts are created on demand, not by ICryptoStack.
+    The former mediator query/action 11 is retired.
+    No CSR provider lookup occurs during registration.
+    Missing provider / processor fails CTX_CREATE.
+  end note
+end
+
+group 2. CREATE the private/public key pair and receive its reference
+  App -> Client : GenerateKey(params)\nalgorithm = ECDSA-P256, permissions = kSign
+  Client -> Mediator : KEY_GENERATE on key-management context_id
+  Mediator -> KeyExecutor : forward operation to context handler
+  KeyExecutor -> Provider : IKeyFactory::GenerateKey(request)
+  Provider -> Provider : generate EC private/public key pair\nretain material in provider-owned key handler
+  Provider --> KeyExecutor : IKeyHandler owning the generated key
+  KeyExecutor -> Keys : RegisterKeyMaterial(client, parent context,\nprovider, key handler)
+  Keys --> KeyExecutor : client-owned key_node_id
+  KeyExecutor --> Mediator : key_node_id + provider_id
+  Mediator --> Client : key reference identifiers only
+  Client --> App : CryptoResourceGuard key_guard\nCryptoResourceId: kKey, kEphemeral
+  note over App, Keys
+    key_guard identifies this generated key on this connection.
+    GenerateKey(params) does not automatically persist it to a slot.
+    Keep the guard valid until the CSR context has bound its own reference.
+  end note
+end
+
+group 3. BIND the returned key reference to a CSR-generation context
+  App -> App : csr_config.SetKey(key_guard)\n.SetAlgorithm("ECDSA-P256-SHA256")\n.SetProviderType(kSoftware)
+  App -> Client : CreateCsrGenerationContext(csr_config)
+  Client -> Mediator : CTX_CREATE(CSR_GENERATION, signature algorithm, ...)\nkey_node_id = key_guard's resource id
+  Mediator -> Contexts : select and assemble keyed CSR context
+  Contexts -> Keys : ResolveTargetProvider(client, preference, key_node_id)
+  Keys --> Contexts : provider compatible with key affinity
+  Contexts -> Provider : create CSR handler for signature algorithm
+  Provider -> Provider : construct own keyless processor and executor\nno independent processing-provider selection
+  Provider --> Contexts : uninitialized CSR handler
+  Contexts -> Keys : BindAndAuthorize(client, csr_context_id,\nkey_node_id, provider, kSign, algorithm)
+  Keys -> Keys : check ownership, sign permission and compatibility\ncreate context-owned reference to the same key
+  Keys --> Contexts : authorized bound key handler + resolved key node
+  Contexts -> Provider : InitializeContext(bound_key_handler, ...)
+  Provider --> Contexts : initialized CSR handler
+  Contexts --> Mediator : csr_context_id
+  Mediator --> Client : csr_context_id
+  Client --> App : ICsrGenerationContext\nkey and signature algorithm now fixed
+end
+
+group 4. Choose how to prepare generation input
+alt [E] Eager setters
+  App -> Client : csr.SetSubjectDn("CN=device.example,O=Example,C=DE")\noptional AddExtension(...) / AddSubjectAltName(...)
+  loop Existing helper / validation requests as needed
+  Client -> Mediator : CSR_PROCESS on csr_context_id\nDN/extension parsing and validation requests via SHM
+  Mediator -> Provider : authenticate context ownership and forward\nto existing generation context handler
+  Provider -> Executor : own context's Execute(input span, output span)
+  Executor -> Executor : exact span contract and wire::Decode\nreject Generate and GenerateFromDer
+  Executor -> Processor : own provider's Process(owned Document)
+  Processor -> Native : existing native validation / codec bodies\nno bound-key access
+  Native --> Processor : processed Document / native error
+  Processor --> Executor : Document / mapped daemon error
+  Executor -> Executor : same wire::Encode / capacity / response checks\nthen output copy
+  Executor --> Provider : SHM document + one uint64 written-byte count
+  Provider --> Mediator : processing result
+  Mediator --> Client : processing response
+  end
+  Client -> Client : retain validated request data for Generate()
+  Client --> App : subject/extensions accepted
+else [B] ConfigureBatch: one validation IPC, no signing
+  App -> Client : csr.ConfigureBatch(batch)
+  Client -> Client : collect complete field descriptions locally\nno per-field helper requests
+  Client -> Mediator : CSR_PROCESS on csr_context_id\nSCR1 ValidateBatch + all fields; SHM buffers
+  Mediator -> Provider : authenticate ownership; forward to generation handler
+  Provider -> Executor : own context's Execute(input span, output span)
+  Executor -> Executor : validate spans / wire; reject both generation actions
+  Executor -> Processor : Process(owned ValidateBatch Document)
+  Processor -> Native : parse DN; validate complete batch\nno key access or signing
+  Native --> Processor : complete normalized Document / error
+  Processor --> Executor : Document / mapped error
+  Executor -> Executor : on success: encode, check capacity\nallocate response before output copy
+  Executor --> Provider : SCR1 + written count / error
+  Provider --> Mediator : processing result
+  Mediator --> Client : response
+  alt Successful, complete and well-formed response
+    Client -> Client : atomically replace complete snapshot\nclear eager SAN cache
+    Client --> App : batch accepted; Generate() remains separate
+  else Rejected batch or malformed response
+    Client -> Client : preserve previous snapshot
+    Client --> App : error; no partial commit
+  end
+else [D] Standalone DER input
+  App -> App : prepare subject_dn_der and optional extensions_der\nno setters / ConfigureBatch / processing IPC
+end
+end
+
+opt 5. Application explicitly requests signing using the already-bound key
+alt [G] Current accepted eager / batch snapshot
+  App -> Client : csr.Generate() (separate from ConfigureBatch)
+  Client -> Mediator : CSR_GENERATE_NATIVE on csr_context_id\nneutral CSR input + output buffer via SHM\nno new key selection
+else [D] One-operation DER generation
+  App -> Client : csr.GenerateFromDer(subject_dn_der, extensions_der)
+  Client -> Client : bounds checks and serialization only\nno DER parsing or builder mutation
+  Client -> Mediator : SAME CSR_GENERATE_NATIVE on csr_context_id\nSCR1 GenerateFromDer=17 + DER fields; SHM buffers
+end
+  Mediator -> Provider : forward operation to that context's CSR handler
+  Provider -> Provider : obtain already-bound key; create operation-local X509_REQ\nset version and bound public key
+  alt [D] Strict standalone DER ingress
+    Provider -[#B45309]> DerWire : D1: Decode(input); verify owned wire snapshot
+    DerWire --[#B45309]> Provider : D1r: verified DER-only Document
+    Provider -[#B45309]> DerInput : D2: validate both structures, then populate request
+    DerInput --[#B45309]> Provider : D2r: populated fields
+  else [G] Structured input
+    Provider -> Provider : decode / revalidate complete snapshot\nencode extensions using bound SPKI; populate request
+  end
+  Provider -> Provider : after successful validation: sign with bound key\nverify signature; encode DER; check output capacity\nallocate response, then publish output bytes
+  Provider --> Mediator : signed DER in output buffer + byte count
+  Mediator --> Client : written-byte count
+  Client -> Client : extract signed CSR bytes from output buffer
+  Client --> App : ICsrExport
+  App -> Client : GetEncodedCsrLength() / GetEncodedCsr(buffer)
+  Client --> App : signed PKCS#10 DER bytes\nlocal export; no additional signing request
+end
+
+group 6. RELEASE context and caller-owned key reference
+  App -> Client : destroy CSR context
+  Client -> Mediator : CTX_CLOSE(csr_context_id)
+  Mediator -> Keys : remove context subtree\nrelease its bound-key reference
+  App -> Client : release/destroy key_guard
+  Client -> Mediator : KEY_RELEASE(key_node_id)
+  Mediator -> KeyExecutor : release caller-owned key reference
+  KeyExecutor -> Keys : remove caller's key node\nunderlying key lifetime follows remaining references
+  opt Standalone processing context was created
+    App -> Client : destroy standalone processing context
+    Client -> Mediator : CTX_CLOSE(processing_context_id)
+    Mediator -> Processing : remove context node and destroy handler
+  end
+end
+
+legend bottom
+  Read top to bottom: connect -> optional helpers -> CREATE KEY -> BIND -> choose E / B / D -> SIGN -> RELEASE.
+  Example: generated software EC key, then ECDSA-SHA256 CSR signing; no generic hardware signer is implied.
+  The key reference selects the daemon-side private key during context creation only.
+  PKCS#10 contains subject, public key, attributes/extensions and signature, not private-key bytes or the key reference.
+  No certificate issuance, CA submission, persistent-key storage or new policy is introduced by this diagram.
+  Eager: existing helper calls. Batch: one validation IPC plus separate Generate. DER: one generation IPC after setup.
+endlegend
+@enduml

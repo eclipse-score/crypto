@@ -72,6 +72,7 @@ package "Crypto Context" {
         + CreateCertificateManagementContext(config) : Result<ICertificateManagementContext::Uptr>
         + CreateCertificateVerificationContext(config) : Result<ICertificateVerificationContext::Uptr>
         + CreateCsrGenerationContext(config) : Result<ICsrGenerationContext::Uptr>
+        + CreateCsrProcessingContext(config) : Result<ICsrProcessingContext::Uptr>
         __ Queries __
         + QueryCapabilities(algorithm) : Result<AlgorithmCapabilities>
         + QueryCapabilities() : Result<SystemCapabilities>
@@ -86,6 +87,27 @@ package "Crypto Context" {
     }
 
     ICryptoContext -[hidden]-> ICryptoStack
+
+    interface ICsrProcessingContext
+    interface ICsrProcessingService {
+        + Process(document) : Result<Document>
+    }
+    interface IContext
+    ICsrProcessingContext --|> IContext
+    ICsrProcessingContext --|> ICsrProcessingService : existing helper seam
+    ICryptoContext --> ICsrProcessingContext : CTX_CREATE / CTX_CLOSE lifetime
+    note right of ICsrProcessingContext
+        Keyless CSR helpers and templates use this context.
+        No CSR-specific creation method belongs to ICryptoStack.
+        Processing uses the context node, not a mediator query.
+        This API view contains no daemon implementation types.
+    end note
+    note right of ICsrProcessingService
+        Value-only helper seam; no connection or transcoder.
+        Transport client is a separate adapter/header.
+        Daemon backend selection does not change this API
+        or the current wire/DER encode/decode contracts.
+    end note
 }
 
 ' ============================================================

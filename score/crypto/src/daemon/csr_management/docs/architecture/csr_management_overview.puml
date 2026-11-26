@@ -1,0 +1,142 @@
+' *******************************************************************************
+' Copyright (c) 2026 Contributors to the Eclipse Foundation
+'
+' See the NOTICE file(s) distributed with this work for additional
+' information regarding copyright ownership.
+'
+' This program and the accompanying materials are made available under the
+' terms of the Apache License Version 2.0 which is available at
+' https://www.apache.org/licenses/LICENSE-2.0
+'
+' SPDX-License-Identifier: Apache-2.0
+' *******************************************************************************
+
+@startuml csr_management_overview
+title CSR Management: Existing Eager / Batch Paths and One-Operation DER Generation
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam packageTitleAlignment left
+skinparam ArrowColor #46535E
+skinparam ArrowThickness 2
+skinparam ArrowFontSize 12
+skinparam nodesep 70
+skinparam ranksep 80
+skinparam linetype polyline
+skinparam package {
+  BackgroundColor #F4F7F9
+  BorderColor #596B78
+  FontColor #20313D
+}
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #596B78
+  FontColor #20313D
+}
+
+package "Client application" {
+  component "ICryptoStack\nCreateCryptoContext()\nno CSR-specific factory" as Stack
+  component "ICryptoContext\nCreateCsrProcessingContext(config)\nCreateCsrGenerationContext(config)" as ClientFactory
+  component "ICsrProcessingContext (existing / optional)\nimplements ICsrProcessingService\nstandalone helpers and templates" as ProcessingClient
+  component "CryptoResourceId key_ref\nresolved key slot or loaded/generated key\nreference only, not private-key bytes" as KeyReference #FFF3DD
+  component "ICsrGenerationContext\neager setters / ConfigureBatch -> Generate()\nOR GenerateFromDer(subject_dn_der, extensions_der={})\nordinary keyed context; client bounds / serialization" as GenerationClient
+}
+
+package "Crypto daemon" {
+  component "Control plane\nresolves SHM buffer descriptors" as ControlPlane
+  component "MediatorImpl\ngeneric request routing" as Mediator
+  component "ContextAssembler\ncontext node and handler initialization\nkey binding only for keyed contexts" as Assembly
+
+  component "HandlerSelector\nCSR_GENERATION view" as GenerationSelection #F2FAF3
+  component "ContextFactoryRegistry\nCSR_GENERATION is NOT registered" as GenerationRegistry #F2FAF3
+  component "HandlerSelector\nCSR:PROCESSING view" as ProcessingSelection #F7F2FC
+  component "ContextFactoryRegistry\nCSR:PROCESSING IS registered" as ProcessingRegistry #F7F2FC
+
+  component "IDataManager / ContextDataNode\nclient-owned context and handler lifetime" as DataManager
+  component "KeyManagementService\nkey ownership, permissions and binding" as KeyManagement #FFF3DD
+  component "ProviderManager\nkCsrProcessing: software-first\nexisting availability / fallback rules" as Providers
+  component "IProvider <<interface>>\noptional GetCsrProcessor()" as ProviderApi
+  interface "provider::csr::ICsrProcessor\nDocument -> Document / daemon error" as Processor
+
+  component "CsrManagementModule\nIMediatorRegistrar" as Module #E6F7ED
+  component "CsrProcessingContextFactory\nfresh handler per CTX_CREATE" as ProcessingFactory #E6F7ED
+  component "CsrProcessingContextHandler\nnormal Initialize / Execute / Reset\nno key or algorithm" as ProcessingHandler #E6F7ED
+  component "CsrProcessingExecutor\nspan validation / wire decode and encode\ncapacity / response allocation / output copy" as Executor #E6F7ED
+
+  component "ProviderArbiter\nalgorithm, key affinity and provider selection" as Arbiter #FFF3DD
+
+  component "OpenSSL : IProvider\nkCsrProcessing capability" as OpenSslProvider
+  component "OpenSslCsrProcessor\nvalue-only adapter / error mapping" as Adapter #E6F7ED
+  component "NativeCsrProcessing\nValidateBatch: DN parsing / structural checks\nexisting request-local helper / codecs" as Native #E6F7ED
+  component "CSR_GENERATION context handler\nstructured [G] OR standalone DER [D]\nshared bound-key sign / verify / DER output" as Handler #FFF3DD
+  component "wire::Decode\nowned SHM snapshot\nstrict full shape / canonical wire" as DerWire #FFF4E8
+  component "PopulateRequestFromDer\ncanonical standalone Name / Extensions\noperation-local X509_REQ; before signing" as DerInput #FFF4E8
+}
+
+Stack --> ClientFactory : prerequisite: create factory
+ClientFactory <-[#7E57C2]-> ProcessingClient : P14: construct proxy(context_id)\n<color:#7E57C2>P14r: created processing proxy</color>
+ClientFactory <-[#238636]-> GenerationClient : G12: construct proxy(context_id)\n<color:#238636>G12r: created generation proxy</color>
+ClientFactory <-[#238636]-> ControlPlane : <color:#238636><b>G1 [C] CREATE GENERATION</b></color>\n<color:#238636>G1r: generation context_id</color>
+ClientFactory <-[#7E57C2]-> ControlPlane : <color:#7E57C2><b>P1 [C] CREATE PROCESSING</b></color>\n<color:#7E57C2>P1r: processing context_id</color>
+ProcessingClient <-[#7E57C2]-> ControlPlane : P15 [P] CSR_PROCESS\n<color:#7E57C2>P15r: written count; SCR1 in SHM</color>
+KeyReference -[#238636]-> ClientFactory : prerequisite: key_ref\n+ algorithm
+GenerationClient <-[#7E57C2]-> ControlPlane : P15 [E/B] CSR_PROCESS\n[E] eager helper(s); [B] ONE ValidateBatch\n<color:#7E57C2>P15r: count; processed fields in SHM</color>
+GenerationClient <-[#238636]-> ControlPlane : G13 [G/D] CSR_GENERATE_NATIVE\n<color:#238636>G13r: written count; DER in SHM</color>
+ControlPlane <--> Mediator : <color:#238636>G2: create; G14: execute</color>\n<color:#238636>G2r: context_id; G14r: written count</color>\n<color:#7E57C2>P2: create; P16: execute</color>\n<color:#7E57C2>P2r: context_id; P16r: written count</color>
+
+Module ..> ProcessingRegistry : startup: register\nCSR:PROCESSING only
+Mediator <-[#238636]-> GenerationSelection : G3 [C] select generation handler\n<color:#238636>G3r: provider + handler to Mediator</color>
+Mediator <-[#7E57C2]-> ProcessingSelection : P3 [C] select processing handler\n<color:#7E57C2>P3r: processing handler to Mediator</color>
+GenerationSelection <-[#238636]-> GenerationRegistry : G4: Find(CSR_GENERATION)\n<color:#238636>G4r: NO FACTORY to selector</color>
+ProcessingSelection <-[#7E57C2]-> ProcessingRegistry : P4: Find(CSR:PROCESSING)\n<color:#7E57C2>P4r: FACTORY FOUND to selector</color>
+ProcessingSelection <-[#7E57C2]-> ProcessingFactory : P5 [FOUND]: Create(request)\n<color:#7E57C2>P5r: handler</color>
+ProcessingFactory <-[#7E57C2]-> Providers : P6: resolve kCsrProcessing\n<color:#7E57C2>P6r: selected IProvider</color>
+Providers -[#7E57C2]-> ProviderApi : wiring: selected IProvider
+ProcessingFactory <-right[#7E57C2]-> ProviderApi : P7: GetCsrProcessor()\n<color:#7E57C2>P7r: fresh ICsrProcessor</color>
+ProcessingFactory <-[#7E57C2]-> Executor : P9: construct with processor\n<color:#7E57C2>P9r: created executor</color>
+ProcessingFactory <-[#7E57C2]-> ProcessingHandler : P10: construct with executor\n<color:#7E57C2>P10r: created handler</color>
+OpenSslProvider ..|> ProviderApi
+OpenSslProvider <-[#7E57C2]-> Adapter : P8: construct processor\n<color:#7E57C2>P8r: created processor</color>
+Adapter ..|> Processor
+Mediator <--> Assembly : <color:#238636>G8: Assemble; G8r: context_id</color>\n<color:#7E57C2>P11: Assemble; P11r: context_id</color>
+Assembly <--> DataManager : <color:#238636>G9: add context; G9r: context_id</color>\n<color:#7E57C2>P12: add context; P12r: context_id</color>
+Assembly <-[#7E57C2]-> ProcessingHandler : P13: initialize; no key\n<color:#7E57C2>P13r: initialization status</color>
+Mediator <-left-> DataManager : <color:#238636><b>G15: lookup; G15r: context accessor</b></color>\n<color:#7E57C2>P17: lookup; P17r: context accessor</color>
+Mediator <-[#7E57C2]-> ProcessingHandler : P18 [P] input / output spans\n<color:#7E57C2>P18r: written count; SCR1 in SHM</color>
+ProcessingHandler <-[#7E57C2]-> Executor : P19 [P] Execute(spans)\n<color:#7E57C2>P19r: written count; SCR1 in SHM</color>
+Executor <-[#7E57C2]-> Processor : P20: Process(Document)\n<color:#7E57C2>P20r: Document / daemon error</color>
+Adapter <-[#7E57C2]-> Native : P21: Process(Document)\n<color:#7E57C2>P21r: Document / native error</color>
+
+GenerationSelection <-[#238636]-> Arbiter : G5 [NO FACTORY]: arbitrate\n<color:#238636>G5r: provider + handler to selector</color>
+Arbiter <-[#238636]-> KeyManagement : G6: resolve key affinity\n<color:#238636>G6r: compatible provider_id</color>
+Arbiter <-[#238636]-> OpenSslProvider : G7: create CSR handler\n<color:#238636>G7r: CSR handler to Arbiter</color>
+Assembly <-right[#238636]-> KeyManagement : G10: BindAndAuthorize(kSign)\n<color:#238636>G10r: bound key handler + node id</color>
+Assembly <-down[#238636]-> Handler : G11: initialize with bound key\n<color:#238636>G11r: initialization status</color>
+Mediator <-[#238636]-> Handler : G16 [G/D] validate / sign\n<color:#238636>G16r: written count; DER in SHM</color>
+Handler <-[#B45309]-> DerWire : D1: Decode(input)\n<color:#B45309>D1r: owned verified Document</color>
+Handler <-[#B45309]-> DerInput : D2: PopulateRequestFromDer\n<color:#B45309>D2r: validated request fields</color>
+Mediator <-[#7E57C2]-> Handler : P18 [E/B] processing spans\n<color:#7E57C2>P18r: written count; SCR1 in SHM</color>
+Handler <-[#7E57C2]-> Executor : P19 [E/B] own executor; no key access\n<color:#7E57C2>P19r: written count; SCR1 in SHM</color>
+
+' Explanatory notes and sequence reading guide: CSR.readme.
+legend top left
+  <size:16><b>ARROW COLOR KEY</b></size>
+  <color:#238636><b>GREEN arrows = CSR GENERATION: context creation, key binding and signing.</b></color>
+  <color:#7E57C2><b>VIOLET arrows = CSR PROCESSING: standalone / eager helpers or batch validation; never signs.</b></color>
+  <color:#B45309><b>ORANGE D1-D2 = daemon-local DER ingress nested in G16, NOT extra IPCs / services.</b></color>
+  <color:#46535E><b>GREY arrows = SHARED routing, context lifecycle, registration and interfaces.</b></color>
+  Both arrowheads use the same path color. Shared shafts stay grey; their G labels are green and P labels violet.
+  Box fills: pale green = keyless processing; pale yellow = keyed generation; lookup tints distinguish the two request views.
+
+  <b>DATA CARRIED - codes on arrows refer to these request / result contracts</b>
+  |= Code |= Request data |= Successful result |
+  | <b>[C] Create context</b> | CTX_CREATE: context type + algorithm + provider preference\nGeneration adds key_ref.id; processing uses no key / algorithm. | New context_id |
+  | <color:#7E57C2><b>[P] Standalone helper</b></color> | Existing CSR_PROCESS + processing context_id; SHM descriptors\nInput: SCR1 helper / template action and its values. | Processed SCR1 document in output SHM\nControl response: uint64 written-byte count |
+  | <color:#7E57C2><b>[E] Eager setter</b></color> | CSR_PROCESS + generation context_id; SHM descriptors\nExisting SCR1 helper / validation action; repeat as needed. | Processed SCR1 / uint64 count\nClient commits accepted setter state; no signature |
+  | <color:#7E57C2><b>[B] ConfigureBatch</b></color> | CSR_PROCESS + generation context_id; SHM descriptors\nSCR1 ValidateBatch: subject_dn OR subject entries\nALL extension descriptions + optional password; no key override. | Complete normalized subject / extensions / password\nSCR1 in SHM; uint64 count in control reply\nNo signature and no partial client commit |
+  | <color:#238636><b>[G] Generate / sign</b></color> | CSR_GENERATE_NATIVE + generation context_id; SHM descriptors\nInput: SCR1 subject + extensions + optional challenge password. | Signed PKCS#10 DER in output SHM\nControl response: uint64 written-byte count |
+  | <color:#B45309><b>[D] GenerateFromDer</b></color> | SAME CSR_GENERATE_NATIVE + keyed context_id; SHM descriptors\nSCR1 Action::GenerateFromDer=17; subject_der / extensions_der ONLY. | SAME signed DER / uint64 count\nNo intermediate validation reply / token |
+endlegend
+@enduml
