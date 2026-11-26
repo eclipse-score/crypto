@@ -25,7 +25,7 @@
 //   - Slot resolution and cert load via the executor call sequence
 //     (ResolveCertSlotNode → ResolveCertSlotHandle → Load)
 //   - ResolveCertObject round-trip
-//   - Cert node release and subsequent unresolvability
+//   - Cert node release and subsequent unresolvability; slot and trust-store nodes are not released
 //   - Load creates independent CertEntries per client; shared CertObject bytes
 //     avoid repeated disk reads (certificate cache in CertSlotManager)
 //   - Mediator-style client cleanup isolates clients — purging one leaves the other intact
@@ -291,6 +291,55 @@ TEST_F(CertManagementServiceTest, ReleaseCertificate_NodeBecomesUnresolvable)
 TEST_F(CertManagementServiceTest, ReleaseCertificate_UnknownNodeId_ReturnsError)
 {
     EXPECT_FALSE(m_service->ReleaseCertificate(kClientA, 999U).has_value());
+}
+
+TEST_F(CertManagementServiceTest, ReleaseCertificate_CertSlotNode_IsRefusedAndSlotStaysResolvable)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_cert_management__slots");
+    RecordProperty("Description",
+                   "Refuses to release a certificate-slot node; the slot keeps resolving to the same node.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto slot_node_id = m_service->ResolveCertSlotNode(std::string{kAppResource}, kClientA);
+    ASSERT_TRUE(slot_node_id.has_value());
+
+    const auto released = m_service->ReleaseCertificate(kClientA, slot_node_id.value());
+    ASSERT_FALSE(released.has_value());
+    EXPECT_EQ(released.error(), common::DaemonErrorCode::kInvalidResourceId);
+
+    EXPECT_TRUE(m_service->ResolveCertSlotHandle(kClientA, slot_node_id.value()).has_value());
+    const auto resolved_again = m_service->ResolveCertSlotNode(std::string{kAppResource}, kClientA);
+    ASSERT_TRUE(resolved_again.has_value());
+    EXPECT_EQ(resolved_again.value(), slot_node_id.value());
+}
+
+TEST_F(CertManagementServiceTest, ReleaseCertificate_TrustStoreNode_IsRefusedAndStoreStaysResolvable)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_cert_management__slots");
+    RecordProperty("Description",
+                   "Refuses to release a trust-store node; the trust store keeps resolving to the same node.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    cert::TrustStoreConfig ts_cfg;
+    ts_cfg.store_name = "test-roots";
+    ts_cfg.members.push_back(
+        cert::TrustStoreMemberConfig{std::string{kSlotName}, cert::TrustStoreMemberKind::kSharedStatic});
+    ASSERT_TRUE(m_trust_store_manager->Load({ts_cfg}, m_registry, m_slot_manager).has_value());
+    m_trust_store_manager->RegisterAppResource(0U, "roots", "test-roots");
+
+    const auto ts_node_id = m_service->ResolveTrustStoreNode("roots", kClientA);
+    ASSERT_TRUE(ts_node_id.has_value());
+
+    const auto released = m_service->ReleaseCertificate(kClientA, ts_node_id.value());
+    ASSERT_FALSE(released.has_value());
+    EXPECT_EQ(released.error(), common::DaemonErrorCode::kInvalidResourceId);
+
+    EXPECT_TRUE(m_service->ResolveTrustStoreHandle(kClientA, ts_node_id.value()).has_value());
+    const auto resolved_again = m_service->ResolveTrustStoreNode("roots", kClientA);
+    ASSERT_TRUE(resolved_again.has_value());
+    EXPECT_EQ(resolved_again.value(), ts_node_id.value());
 }
 
 // ---------------------------------------------------------------------------

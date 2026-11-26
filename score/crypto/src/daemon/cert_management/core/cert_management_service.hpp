@@ -106,10 +106,13 @@ class CertManagementService final
         const CertRegistrationParams& params);
 
     /// @brief Delete a client's certificate data node.
+    ///
+    /// Only a certificate data node is deleted. Certificate-slot and trust-store nodes are reused for the client
+    /// and stay until client cleanup.
     /// @param client_id Client that owns the node.
     /// @param node_id Identifier of the certificate data node to delete.
-    /// @return An empty value on success, or kInvalidResourceId if the node is absent for the client or cannot be
-    /// removed.
+    /// @return An empty value on success, or kInvalidResourceId if the node is absent for the client, is not a
+    /// certificate data node, or cannot be removed.
     /// @note Thread safety: Concurrent calls are safe.
     score::crypto::Expected<std::monostate, common::DaemonErrorCode> ReleaseCertificate(
         data_manager::ClientId client_id,

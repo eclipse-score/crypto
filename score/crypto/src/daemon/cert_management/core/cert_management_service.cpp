@@ -78,6 +78,15 @@ score::crypto::Expected<std::monostate, Error> CertManagementService::ReleaseCer
     {
         return score::crypto::make_unexpected(Error::kInternalError);
     }
+    {
+        // Only a certificate node is released here. Slot and trust-store nodes are reused for the client until
+        // client cleanup, and other nodes are removed by their own owners.
+        const auto accessor = m_data_manager->getNodeAccessor(client_id, node_id);
+        if (!accessor.has_value() || accessor.value()->GetNodeType() != data_manager::DataNodeType::kCertData)
+        {
+            return score::crypto::make_unexpected(Error::kInvalidResourceId);
+        }
+    }
     const auto delete_result = m_data_manager->deleteNode(client_id, node_id);
     if (!delete_result.has_value())
     {
