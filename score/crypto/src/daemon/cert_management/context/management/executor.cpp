@@ -225,6 +225,7 @@ Response CertManagementExecutor::HandleParse(const CertExecutionContext& ctx, co
 
 // Parameter layout: same as CERT_PARSE
 // Response: certificate count (uint64) followed by one certificate node id (uint64) per certificate.
+// All or nothing: on an error no certificate of the bundle stays registered.
 Response CertManagementExecutor::HandleParseChain(const CertExecutionContext& ctx,
                                                   common::RequestParameters& request) const
 {
@@ -247,14 +248,30 @@ Response CertManagementExecutor::HandleParseChain(const CertExecutionContext& ct
         return score::crypto::make_unexpected(parsed.error());
     }
 
+    // The response carries the count and one id per certificate; a bundle whose ids cannot fit is refused before any
+    // certificate is registered.
+    const auto count = parsed.value().size();
+    if ((1U + count) * sizeof(std::uint64_t) > common::kMaxResponsePayloadBytes)
+    {
+        score::mw::log::LogError() << kLogPrefix << "HandleParseChain: " << count
+                                   << " certificates exceed the response budget";
+        return score::crypto::make_unexpected(Error::kResponseTooLarge);
+    }
+
     common::ResponseParameters out;
-    out.push_back(static_cast<std::uint64_t>(parsed.value().size()));
+    out.push_back(static_cast<std::uint64_t>(count));
     for (auto& certificate : parsed.value())
     {
         auto registered = m_service->RegisterCertificate(CertRegistrationParams{ctx.client_id, ctx.context_node_id, {}},
                                                          std::move(certificate));
         if (!registered.has_value())
         {
+            // Release the certificates registered by this call, whose ids the caller does not receive. A failed
+            // release leaves the node a child of the context, freed when the context closes.
+            for (std::size_t index = 1U; index < out.size(); ++index)
+            {
+                static_cast<void>(m_service->ReleaseCertificate(ctx.client_id, std::get<std::uint64_t>(out[index])));
+            }
             return score::crypto::make_unexpected(registered.error());
         }
         out.push_back(static_cast<std::uint64_t>(registered.value().node_id));
@@ -304,7 +321,8 @@ Response CertManagementExecutor::HandleLoad(const CertExecutionContext& ctx, com
 //   request[0] = slot node id (uint64)
 //   request[1] = certificate node id (uint64)
 //   request[2] = with_crl (uint8, optional; 0 = no CRL, nonzero = propagate the certificate's CRL)
-// The certificate write discards the slot's previous CRL. A propagated CRL is written after it.
+// The certificate write discards the slot's previous CRL. A propagated CRL is the certificate's own, resolved before
+// that write and stored after it. If the CRL write fails, the certificate stays stored without a CRL.
 Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, common::RequestParameters& request) const
 {
     const auto slot_node = ExtractValue<std::uint64_t>(request, 0U);
@@ -316,6 +334,16 @@ Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, com
     if (!cert_node.has_value())
     {
         return score::crypto::make_unexpected(cert_node.error());
+    }
+    bool with_crl{false};
+    if (request.size() > 2U)
+    {
+        const auto flag = ExtractValue<std::uint8_t>(request, 2U);
+        if (!flag.has_value())
+        {
+            return score::crypto::make_unexpected(flag.error());
+        }
+        with_crl = (flag.value() != 0U);
     }
 
     const auto slot = m_service->ResolveCertSlotHandle(ctx.client_id, slot_node.value());
@@ -330,7 +358,20 @@ Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, com
         return score::crypto::make_unexpected(certificate.error());
     }
 
-    // The stored certificate's revision ties a propagated CRL to that certificate.
+    // Resolved before the certificate write: when the certificate's source slot is the target, that write discards the
+    // CRL to propagate.
+    CrlData::Sptrc crl;
+    if (with_crl)
+    {
+        auto resolved = m_service->ResolveCrlData(ctx.client_id, cert_node.value());
+        if (!resolved.has_value())
+        {
+            return score::crypto::make_unexpected(resolved.error());
+        }
+        crl = std::move(resolved.value());
+    }
+
+    // The stored certificate's revision ties the propagated CRL to that certificate.
     CertificateRevision stored_revision{};
     const auto stored = m_service->UpdateSlot(slot.value(), ctx.client_id, *certificate.value(), &stored_revision);
     if (!stored.has_value())
@@ -339,29 +380,12 @@ Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, com
         return score::crypto::make_unexpected(stored.error());
     }
 
-    if (request.size() > 2U)
+    if (crl)
     {
-        const auto with_crl = ExtractValue<std::uint8_t>(request, 2U);
-        if (!with_crl.has_value())
+        const auto propagated = m_service->UpdateSlot(slot.value(), ctx.client_id, *crl, stored_revision);
+        if (!propagated.has_value())
         {
-            return score::crypto::make_unexpected(with_crl.error());
-        }
-        if (with_crl.value() != 0U)
-        {
-            auto crl = m_service->ResolveCrlData(ctx.client_id, cert_node.value());
-            if (!crl.has_value())
-            {
-                return score::crypto::make_unexpected(crl.error());
-            }
-            if (crl.value())
-            {
-                const auto propagated =
-                    m_service->UpdateSlot(slot.value(), ctx.client_id, *crl.value(), stored_revision);
-                if (!propagated.has_value())
-                {
-                    return score::crypto::make_unexpected(propagated.error());
-                }
-            }
+            return score::crypto::make_unexpected(propagated.error());
         }
     }
 

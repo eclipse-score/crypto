@@ -91,7 +91,9 @@ class ICertificateManagementContext : public IContext
     /// @param cert_data PEM bundle or concatenated DER certificate data
     /// @param format Encoding format of the data
     /// @return Ordered vector of guards (first = first certificate in the data).
-    ///         Each guard owns one daemon-assigned ephemeral resource.
+    ///         Each guard owns one daemon-assigned ephemeral resource. On an error no certificate of the data
+    ///         stays registered; kInsufficientBufferSize means the data holds more certificates than one call
+    ///         returns, and smaller parts can be parsed separately.
     virtual score::Result<std::vector<CryptoResourceGuard>> ParseCertificates(score::cpp::span<const uint8_t> cert_data,
                                                                               FormatType format) = 0;
 
