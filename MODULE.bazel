@@ -23,6 +23,14 @@ python.toolchain(
     python_version = PYTHON_VERSION,
 )
 
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "crypto_schema_deps",
+    python_version = PYTHON_VERSION,
+    requirements_lock = "//bazel/tools:schema_requirements.txt",
+)
+use_repo(pip, "crypto_schema_deps")
+
 # Foreign CC rules for building projects with external build systems (make, cmake, etc.)
 bazel_dep(name = "rules_foreign_cc", version = "0.16.0")
 
@@ -248,6 +256,7 @@ bazel_dep(name = "score_process_description", version = "2.2.5")
 bazel_dep(name = "score_platform", version = "0.7.7")
 
 # score baselibs
+bazel_dep(name = "flatbuffers", version = "25.12.19.bcr.1")  # same version score_baselibs pins; needed for @flatbuffers//:flatc
 bazel_dep(name = "score_baselibs", version = "0.2.19")
 
 # score communication

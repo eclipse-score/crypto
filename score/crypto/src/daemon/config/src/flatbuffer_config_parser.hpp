@@ -26,7 +26,7 @@
 #include "score/crypto/src/daemon/common/daemon_error.hpp"
 #include "score/crypto/src/daemon/config/inc/config.hpp"
 
-namespace score::crypto::daemon::config::keyslot
+namespace score::crypto::daemon::config::flatbuf
 {
 // Forward declarations for FlatBuffers-generated types (key slot config)
 class CryptoConfig;
@@ -37,7 +37,7 @@ class CertSlotEntry;
 class TrustStoreEntry;
 class AppCertSlotMapping;
 class AppTrustStoreMapping;
-}  // namespace score::crypto::daemon::config::keyslot
+}  // namespace score::crypto::daemon::config::flatbuf
 
 namespace score::crypto::daemon::config
 {
@@ -73,7 +73,7 @@ class ConfigFile
 
 /// @brief Parser for FlatBuffers-based configuration files.
 ///
-/// Transforms serialized configuration (from score::crypto::daemon::config::keyslot
+/// Transforms serialized configuration (from score::crypto::daemon::config::flatbuf
 /// namespace via FlatBuffers) into KeyConfig and CertificateConfig objects that
 /// the rest of the daemon recognises.
 ///
@@ -149,15 +149,15 @@ class FlatBufferConfigParser
     ///         identifier, or fails FlatBuffers verification.
     static Expected<std::monostate, common::DaemonErrorCode> ValidateBuffer(const uint8_t* data, size_t size);
 
-    static Expected<std::monostate, common::DaemonErrorCode> ParseKeySlotConfig(const keyslot::CryptoConfig* root,
+    static Expected<std::monostate, common::DaemonErrorCode> ParseKeySlotConfig(const flatbuf::CryptoConfig* root,
                                                                                 KeyConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseSlotEntries(
-        const keyslot::KeySlotConfig* key_slot_config,
+        const flatbuf::KeySlotConfig* key_slot_config,
         KeyConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseAppKeySlotMappings(
-        const keyslot::KeySlotConfig* key_slot_config,
+        const flatbuf::KeySlotConfig* key_slot_config,
         KeyConfig& out_config);
 
     // -----------------------------------------------------------------------
@@ -165,23 +165,23 @@ class FlatBufferConfigParser
     // -----------------------------------------------------------------------
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseCertSlotConfig(
-        const keyslot::CertSlotConfig* cert_slot_config,
+        const flatbuf::CertSlotConfig* cert_slot_config,
         CertificateConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseCertSlotEntries(
-        const keyslot::CertSlotConfig* cert_slot_config,
+        const flatbuf::CertSlotConfig* cert_slot_config,
         CertificateConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseTrustStoreEntries(
-        const keyslot::CertSlotConfig* cert_slot_config,
+        const flatbuf::CertSlotConfig* cert_slot_config,
         CertificateConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseAppCertSlotMappings(
-        const keyslot::CertSlotConfig* cert_slot_config,
+        const flatbuf::CertSlotConfig* cert_slot_config,
         CertificateConfig& out_config);
 
     static Expected<std::monostate, common::DaemonErrorCode> ParseAppTrustStoreMappings(
-        const keyslot::CertSlotConfig* cert_slot_config,
+        const flatbuf::CertSlotConfig* cert_slot_config,
         CertificateConfig& out_config);
 };
 

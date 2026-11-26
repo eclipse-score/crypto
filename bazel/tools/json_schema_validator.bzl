@@ -1,0 +1,103 @@
+# *******************************************************************************
+# Copyright (c) 2026 Contributors to the Eclipse Foundation
+#
+# See the NOTICE file(s) distributed with this work for additional
+# information regarding copyright ownership.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Apache License Version 2.0 which is available at
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# SPDX-License-Identifier: Apache-2.0
+# *******************************************************************************
+
+"""
+Creates "validate_json_schema_test" test rule which validates the input "json" file against its "schema"
+"""
+
+visibility(["//..."])
+
+def _validate_json_impl(ctx):
+    validated = ctx.actions.declare_file(ctx.label.name + "/" + ctx.file.json.basename)
+    ctx.actions.run_shell(
+        inputs = [ctx.file.json, ctx.file.schema],
+        tools = [ctx.attr._validator[DefaultInfo].files_to_run],
+        outputs = [validated],
+        arguments = [
+            ctx.executable._validator.path,
+            ctx.file.schema.path,
+            ctx.file.json.path,
+            validated.path,
+        ],
+        command = '"$1" "$2" < "$3" && cp "$3" "$4"',
+        mnemonic = "ValidateJsonSchema",
+        progress_message = "Validating JSON configuration %s" % ctx.file.json.short_path,
+    )
+    return [DefaultInfo(files = depset([validated]))]
+
+validate_json = rule(
+    implementation = _validate_json_impl,
+    doc = "Produces an unchanged JSON copy only after successful JSON Schema validation.",
+    attrs = {
+        "json": attr.label(allow_single_file = [".json"], mandatory = True),
+        "schema": attr.label(allow_single_file = [".json"], mandatory = True),
+        "_validator": attr.label(
+            default = Label("//bazel/tools:json_schema_validator"),
+            executable = True,
+            cfg = "exec",
+        ),
+    },
+)
+
+def _impl(ctx):
+    script = """
+    readonly expected_failure={expected_failure}
+    '{validator}' '{schema}' < '{json}'
+    readonly ret=$?
+    if test "$expected_failure" = true && test "$ret" -ne 0; then
+        exit 0
+    elif test "$expected_failure" = false && test "$ret" -eq 0; then
+        exit 0
+    fi
+    echo "Test Failed: Json validator performed json validation of '{json}' against '{schema}' schema with exit code $ret, meanwhile rule attribute 'expected_failure' is equal to '{expected_failure}'.
+This means in case expected_failure=false then expected exit code should be zero (valid json). Otherwise, if expected_failure=true then exit code is non-zero (invalid json).
+Note: by default expected_failure is false."
+    exit 1
+    """.format(
+        validator = ctx.attr._validator.files_to_run.executable.short_path,
+        schema = ctx.file.schema.short_path,
+        json = ctx.file.json.short_path,
+        expected_failure = "true" if ctx.attr.expected_failure else "false",
+    )
+
+    ctx.actions.write(
+        output = ctx.outputs.executable,
+        content = script,
+    )
+
+    # To ensure the files needed by the script are available, put them in the runfiles
+    runfiles = ctx.runfiles(files = [ctx.file.json, ctx.file.schema]).merge(
+        ctx.attr._validator[DefaultInfo].default_runfiles,
+    )
+    return [DefaultInfo(runfiles = runfiles)]
+
+validate_json_schema_test = rule(
+    implementation = _impl,
+    attrs = {
+        "expected_failure": attr.bool(default = False),
+        "json": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "schema": attr.label(
+            allow_single_file = True,
+            mandatory = True,
+        ),
+        "_validator": attr.label(
+            default = Label("//bazel/tools:json_schema_validator"),
+            executable = True,
+            cfg = "exec",
+        ),
+    },
+    test = True,
+)

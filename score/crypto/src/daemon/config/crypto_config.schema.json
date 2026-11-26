@@ -1,0 +1,437 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Top-level configuration root_type.\n\nEvery section is optional — the daemon starts with empty registries for key and\ncert sections that are absent, and with defaults for ipc_config and general_config.\nSupported deployment profiles:\n\nKey management only  — provide key_slot_config, omit cert_slot_config.\nCert management only — provide cert_slot_config, omit key_slot_config.\nFull stack           — provide both sections.\nMinimal / test       — omit all sections (empty config is valid).",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "key_slot_config": {
+            "type": "object",
+            "description": "Key slot config contains all slot and app key slot definitions",
+            "required": [
+                "slot_entries",
+                "app_key_slot_mappings"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "slot_entries": {
+                    "type": "array",
+                    "description": "All key slot definitions",
+                    "items": {
+                        "type": "object",
+                        "description": "Single key slot definition from the configuration source\nMirrors KeyConfig::KeySlotEntry structure",
+                        "required": [
+                            "slot_name",
+                            "algorithm",
+                            "provider_names",
+                            "allowed_operations",
+                            "allowed_uids",
+                            "allowed_write_uids",
+                            "deployment_path",
+                            "deployment_format"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "slot_name": {
+                                "type": "string",
+                                "description": "Human-readable resource ID (e.g., \"vehicle/hmac-256\")"
+                            },
+                            "algorithm": {
+                                "type": "string",
+                                "description": "Algorithm string (e.g., \"HMAC-SHA256\", \"AES-256-CMAC\")"
+                            },
+                            "provider_names": {
+                                "type": "array",
+                                "description": "Ordered provider names. [0] is the primary (sole writer)",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "allowed_operations": {
+                                "type": "string",
+                                "description": "List of operations allowed for the key in the slot (e.g., \"MAC\", \"ENCRYPT|DECRYPT\")"
+                            },
+                            "allowed_uids": {
+                                "type": "array",
+                                "description": "UIDs permitted to read/load from the slot",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "allowed_write_uids": {
+                                "type": "array",
+                                "description": "UIDs permitted to write/generate into the slot",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "deployment_path": {
+                                "type": "string",
+                                "description": "Absolute, or relative to deployment_root."
+                            },
+                            "deployment_format": {
+                                "type": "string",
+                                "description": "Format of the deployment descriptor (default \"kv\")."
+                            },
+                            "lifecycle": {
+                                "type": "object",
+                                "description": "Optional lifecycle metadata; unset applies the defaults of KeyLifecycleMetadata",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "allowed_export_UIDs": {
+                                        "type": "array",
+                                        "description": "UIDs permitted to export the key material; empty = export not allowed",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "max_updates": {
+                                        "type": "integer",
+                                        "description": "Maximum number of updates (writes/generations) allowed; 0 = unlimited"
+                                    },
+                                    "max_usages": {
+                                        "type": "integer",
+                                        "description": "Maximum number of usages (cryptographic operations) allowed; 0 = unlimited"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "app_key_slot_mappings": {
+                    "type": "array",
+                    "description": "All per-app key slot mappings",
+                    "items": {
+                        "type": "object",
+                        "description": "Per-application resource ID to key slot name mapping\nApplications reference keys by portable application-local names\n(e.g., \"signing_key\")",
+                        "required": [
+                            "app_resource_id",
+                            "slot_name"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "uid": {
+                                "type": "integer",
+                                "description": "UID of the application that owns this mapping"
+                            },
+                            "app_resource_id": {
+                                "type": "string",
+                                "description": "Application-local resource name"
+                            },
+                            "slot_name": {
+                                "type": "string",
+                                "description": "Actual slot name registered in the daemon registry"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "cert_slot_config": {
+            "type": "object",
+            "description": "Certificate slot configuration — all cert slots, trust stores, and app resource mappings",
+            "additionalProperties": false,
+            "properties": {
+                "slot_entries": {
+                    "type": "array",
+                    "description": "All certificate slot definitions",
+                    "items": {
+                        "type": "object",
+                        "description": "Single certificate slot definition\nMirrors CertificateConfig::CertSlotEntry",
+                        "required": [
+                            "slot_name",
+                            "deployment_path"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "slot_name": {
+                                "type": "string",
+                                "description": "Human-readable slot identifier (e.g., \"device_cert\", \"root_ca\")"
+                            },
+                            "storage_backend": {
+                                "type": "string",
+                                "description": "Storage backend: \"DEFAULT\" (FileBackedSlotHandler) or a provider name"
+                            },
+                            "allowed_uids": {
+                                "type": "array",
+                                "description": "UIDs intended to be permitted to read/load from the slot; currently unenforced",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "allowed_write_uids": {
+                                "type": "array",
+                                "description": "UIDs permitted to write into the slot",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "deployment_path": {
+                                "type": "string",
+                                "description": "Absolute, or relative to deployment_root."
+                            },
+                            "deployment_format": {
+                                "type": "string",
+                                "description": "Descriptor format (default \"kv\")"
+                            },
+                            "integrity_policy": {
+                                "type": "string",
+                                "description": "Integrity enforcement (default disabled)",
+                                "enum": [
+                                    "disabled",
+                                    "required"
+                                ]
+                            },
+                            "private_key_slot_name": {
+                                "type": "string",
+                                "description": "Optional name of the key slot (KeySlotEntry.slot_name) holding the private key\nthat corresponds to this certificate; unset when no private key is mapped\nTODO : add a validation  to allow only privateKey."
+                            }
+                        }
+                    }
+                },
+                "trust_store_entries": {
+                    "type": "array",
+                    "description": "All trust store definitions",
+                    "items": {
+                        "type": "object",
+                        "description": "Single trust store definition\nMirrors CertificateConfig::TrustStoreEntry",
+                        "required": [
+                            "store_name",
+                            "deployment_path"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "store_name": {
+                                "type": "string",
+                                "description": "Human-readable store name (e.g., \"tls_roots\", \"ota_roots\")"
+                            },
+                            "members": {
+                                "type": "array",
+                                "description": "Ordered list of typed member certificate slots",
+                                "items": {
+                                    "type": "object",
+                                    "description": "One member slot within a trust store",
+                                    "required": [
+                                        "slot_name"
+                                    ],
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "slot_name": {
+                                            "type": "string",
+                                            "description": "Name of the cert slot that acts as a trust anchor"
+                                        },
+                                        "kind": {
+                                            "type": "string",
+                                            "description": "Membership kind — governs mutability and conditional-acceptance behaviour",
+                                            "enum": [
+                                                "kSharedStatic",
+                                                "kExclusiveMutable",
+                                                "kConditionalExternal"
+                                            ]
+                                        }
+                                    }
+                                }
+                            },
+                            "conditional_slot_init": {
+                                "type": "string",
+                                "description": "Default initialisation policy for conditional-external members",
+                                "enum": [
+                                    "kEnableAndAcceptCurrent",
+                                    "kDisableUntilAccepted"
+                                ]
+                            },
+                            "allowed_uids": {
+                                "type": "array",
+                                "description": "Reserved for future UID-based query authorization; currently not enforced",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "allowed_write_uids": {
+                                "type": "array",
+                                "description": "UIDs permitted to mutate membership (add/remove/enable/disable)",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "deployment_path": {
+                                "type": "string",
+                                "description": "Absolute, or relative to deployment_root."
+                            },
+                            "deployment_format": {
+                                "type": "string",
+                                "description": "State descriptor format (default \"kv\")"
+                            }
+                        }
+                    }
+                },
+                "app_cert_slot_mappings": {
+                    "type": "array",
+                    "description": "Per-app cert slot resource ID mappings",
+                    "items": {
+                        "type": "object",
+                        "description": "Per-application resource ID to certificate slot name mapping\nApplications reference cert slots by portable local names rather than\ndaemon slot names",
+                        "required": [
+                            "app_resource_id",
+                            "slot_name"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "uid": {
+                                "type": "integer",
+                                "description": "UID of the application that owns this mapping"
+                            },
+                            "app_resource_id": {
+                                "type": "string",
+                                "description": "Application-local resource name (e.g., \"device_cert\")"
+                            },
+                            "slot_name": {
+                                "type": "string",
+                                "description": "Actual cert slot name registered in the CertSlotRegistry"
+                            }
+                        }
+                    }
+                },
+                "app_trust_store_mappings": {
+                    "type": "array",
+                    "description": "Per-app trust store resource ID mappings",
+                    "items": {
+                        "type": "object",
+                        "description": "Per-application resource ID to trust store name mapping",
+                        "required": [
+                            "app_resource_id",
+                            "trust_store_name"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "uid": {
+                                "type": "integer",
+                                "description": "UID of the application that owns this mapping"
+                            },
+                            "app_resource_id": {
+                                "type": "string",
+                                "description": "Application-local resource name (e.g., \"tls_roots\")"
+                            },
+                            "trust_store_name": {
+                                "type": "string",
+                                "description": "Actual trust store name registered in the daemon"
+                            }
+                        }
+                    }
+                },
+                "parser_provider_name": {
+                    "type": "string",
+                    "description": "Provider name pinned as the daemon-wide certificate parser; unset selects the default"
+                }
+            }
+        },
+        "general_config": {
+            "type": "object",
+            "description": "General daemon configuration section. Mirrors GeneralConfig",
+            "additionalProperties": false,
+            "properties": {
+                "log_level": {
+                    "type": "string",
+                    "description": "Daemon log level (default \"info\")"
+                },
+                "max_sessions": {
+                    "type": "integer",
+                    "description": "Maximum number of concurrent sessions (default 100)"
+                },
+                "quota_policy": {
+                    "type": "object",
+                    "description": "Daemon-wide resource quota policy",
+                    "additionalProperties": false,
+                    "properties": {
+                        "max_ephemeral_keys_per_connection": {
+                            "type": "integer",
+                            "description": "Maximum ephemeral keys allowed per client connection"
+                        },
+                        "max_loaded_keys_per_connection": {
+                            "type": "integer",
+                            "description": "Maximum key slots that may be loaded per client connection"
+                        },
+                        "max_total_key_material_bytes": {
+                            "type": "integer",
+                            "description": "Maximum aggregate key material size allowed by this policy, in bytes (default 4 MiB)"
+                        }
+                    }
+                }
+            }
+        },
+        "ipc_config": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "max_total_connections": {
+                    "type": "integer",
+                    "description": "Maximum concurrently reserved client connections, all UIDs together (default 128)"
+                },
+                "max_connections_per_uid": {
+                    "type": "integer",
+                    "description": "Maximum reserved connections for a single UID. Bounded by max_total_connections (default 128)"
+                },
+                "default_shm_config": {
+                    "type": "object",
+                    "description": "Default shared memory configuration, used for UIDs not listed in uid_shm_configs;\nunset applies the built-in defaults",
+                    "additionalProperties": false,
+                    "properties": {
+                        "pool_region_size": {
+                            "type": "integer",
+                            "description": "Size of the shared memory pool region, in bytes"
+                        },
+                        "pool_slot_size": {
+                            "type": "integer",
+                            "description": "Size of each slot within the pool, in bytes"
+                        },
+                        "max_bytes_per_client": {
+                            "type": "integer",
+                            "description": "Maximum bytes a client can allocate across all connections\nNote : Shall be greater than or equal to pool_region_size."
+                        }
+                    }
+                },
+                "uid_shm_configs": {
+                    "type": "array",
+                    "description": "Per-UID shared memory configuration overrides",
+                    "items": {
+                        "type": "object",
+                        "description": "Maps a UID to its shared memory configuration",
+                        "required": [
+                            "shm_config"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "uid": {
+                                "type": "integer",
+                                "description": "UID this configuration applies to"
+                            },
+                            "shm_config": {
+                                "type": "object",
+                                "description": "Shared memory configuration for this UID",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "pool_region_size": {
+                                        "type": "integer",
+                                        "description": "Size of the shared memory pool region, in bytes"
+                                    },
+                                    "pool_slot_size": {
+                                        "type": "integer",
+                                        "description": "Size of each slot within the pool, in bytes"
+                                    },
+                                    "max_bytes_per_client": {
+                                        "type": "integer",
+                                        "description": "Maximum bytes a client can allocate across all connections\nNote : Shall be greater than or equal to pool_region_size."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "deployment_root": {
+            "type": "string",
+            "description": "Root prefix for relative deployment_path values. Must be absolute when set."
+        }
+    },
+    "$defs": {}
+}
