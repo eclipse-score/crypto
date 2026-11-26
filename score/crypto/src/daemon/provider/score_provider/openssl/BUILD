@@ -91,6 +91,8 @@ cc_library(
     implementation_deps = [
         ":openssl_cert_utils",
         "@score_openssl//:openssl",
+        ":openssl_detail_headers",
+        "//score/crypto/src/daemon/common:algorithm_catalog",
     ],
     target_compatible_with = select({
         "//score/crypto/src/backend:openssl_backend_active": [],

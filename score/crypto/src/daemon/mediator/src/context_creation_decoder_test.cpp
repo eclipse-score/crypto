@@ -137,6 +137,42 @@ TEST(ContextCreationDecoderTest, KeyManagementContextTakesNoAlgorithmDescriptor)
     EXPECT_FALSE(decoded.value().key_node_id.has_value());
 }
 
+TEST(ContextCreationDecoderTest, CertificateManagementContextTakesNoAlgorithmDescriptor)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__decode_validate");
+    RecordProperty("Description", "Certificate management context takes no algorithm descriptor.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto operation = MakeOperation(common::RequestParameters{
+        std::string_view{common::context_types::kCertManagement}, std::string_view{""}, std::uint8_t{0U}});
+
+    const auto decoded = DecodeContextCreationRequest(operation);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded.value().context_type, common::context_types::kCertManagement);
+    EXPECT_FALSE(decoded.value().algorithm_descriptor.has_value());
+    EXPECT_FALSE(decoded.value().key_node_id.has_value());
+}
+
+TEST(ContextCreationDecoderTest, TrustStoreContextTakesNoAlgorithmDescriptor)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__decode_validate");
+    RecordProperty("Description", "Trust store management context takes no algorithm descriptor.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto operation = MakeOperation(common::RequestParameters{
+        std::string_view{common::context_types::kCertTrustStore}, std::string_view{""}, std::uint8_t{0U}});
+
+    const auto decoded = DecodeContextCreationRequest(operation);
+
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(decoded.value().context_type, common::context_types::kCertTrustStore);
+    EXPECT_FALSE(decoded.value().algorithm_descriptor.has_value());
+    EXPECT_FALSE(decoded.value().key_node_id.has_value());
+}
+
 TEST(ContextCreationDecoderTest, DecodesProviderPreferenceWithFallback)
 {
     RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__decode_validate");
@@ -150,9 +186,9 @@ TEST(ContextCreationDecoderTest, DecodesProviderPreferenceWithFallback)
     const auto decoded = DecodeContextCreationRequest(operation);
 
     ASSERT_TRUE(decoded.has_value());
-    EXPECT_EQ(decoded.value().provider.primary, CryptoProviderType::HARDWARE);
-    ASSERT_TRUE(decoded.value().provider.fallback.has_value());
-    EXPECT_EQ(decoded.value().provider.fallback.value(), CryptoProviderType::SOFTWARE);
+    EXPECT_EQ(decoded.value().provider_type_preference.primary, CryptoProviderType::HARDWARE);
+    ASSERT_TRUE(decoded.value().provider_type_preference.fallback.has_value());
+    EXPECT_EQ(decoded.value().provider_type_preference.fallback.value(), CryptoProviderType::SOFTWARE);
 }
 
 TEST(ContextCreationDecoderTest, AbsentProviderPreferenceDefaultsToDefaultWithoutFallback)
@@ -168,8 +204,8 @@ TEST(ContextCreationDecoderTest, AbsentProviderPreferenceDefaultsToDefaultWithou
     const auto decoded = DecodeContextCreationRequest(operation);
 
     ASSERT_TRUE(decoded.has_value());
-    EXPECT_EQ(decoded.value().provider.primary, CryptoProviderType::DEFAULT);
-    EXPECT_FALSE(decoded.value().provider.fallback.has_value());
+    EXPECT_EQ(decoded.value().provider_type_preference.primary, CryptoProviderType::DEFAULT);
+    EXPECT_FALSE(decoded.value().provider_type_preference.fallback.has_value());
 }
 
 TEST(ContextCreationDecoderTest, CarriesKeyNodeIdThroughUnchanged)

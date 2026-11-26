@@ -29,14 +29,15 @@ Scope
 
 The requirements below cover how the mediator processes a request: context
 creation (``CTX_CREATE``), delivery of an operation to an existing context,
-context close, and the order in which the operations of one request run.
-Shared-memory setup and teardown and session-level resource resolution are
-described in the architecture and detailed design and are not restated here.
+context close, the order in which the operations of one request run, and the
+entries that subsystems register with the mediator. Shared-memory setup and
+teardown are described in the architecture and detailed design and are not
+restated here.
 
 Functional requirements
 -----------------------
 
-.. comp_req:: Validate context-creation requests before selecting a provider
+.. comp_req:: Validate context-creation requests before creating a handler
    :id: comp_req__crypto_mediator__decode_validate
    :version: 1
    :reqtype: Functional
@@ -46,11 +47,12 @@ Functional requirements
    :satisfied_by: comp__crypto_mediator
 
    The mediator shall refuse a context-creation request that fails validation
-   without selecting a provider or creating a data node. Checks shall run in a
-   fixed order and the first failure shall be the error the client receives:
-   parameter count, context type, algorithm, provider preference, key reference,
-   algorithm catalog lookup, key requirement of the context type. The key
-   requirement is checked before any provider is asked.
+   without creating a handler or a data node. When a request has more than one
+   defect, the client shall receive the error for the first of these, in this
+   order: a malformed request (parameter count, parameter types, provider
+   preference, key reference), an unknown algorithm, a key reference that does
+   not match the context type (absent where the type requires a key, present
+   where it accepts none).
 
 .. comp_req:: Deliver creation parameters to the handler unchanged
    :id: comp_req__crypto_mediator__handler_semantics
@@ -177,3 +179,63 @@ Functional requirements
    The mediator shall run the operations of one request in order and shall stop
    at the first operation that fails. Operations after it shall not run, and the
    response shall carry only the operations that were processed.
+
+.. comp_req:: Create a context through the factory registered for its type
+   :id: comp_req__crypto_mediator__context_factory
+   :version: 1
+   :reqtype: Functional
+   :security: YES
+   :safety: QM
+   :status: valid
+   :satisfied_by: comp__crypto_mediator
+
+   The mediator shall create a context whose type has a registered factory
+   through that factory, without selecting a provider, and shall create and
+   initialize the context node as it does for any other context. The factory
+   shall receive the validated request. A factory error shall be returned to the
+   client as a public error code and no node shall remain. A request for such a type that references a
+   key shall be refused as not permitted, and the factory shall not be called.
+
+.. comp_req:: Dispatch an operation without a built-in handler to its registered query
+   :id: comp_req__crypto_mediator__query_dispatch
+   :version: 1
+   :reqtype: Functional
+   :security: YES
+   :safety: QM
+   :status: valid
+   :satisfied_by: comp__crypto_mediator
+
+   The mediator shall pass a mediator operation that it does not implement itself
+   to the query registered for its operation code and return the query's result.
+   An operation code with neither a built-in handler nor a registered query shall
+   fail. An operation that the mediator implements itself shall never be passed
+   to a query.
+
+.. comp_req:: Resolve a named resource through the resolver registered for its type
+   :id: comp_req__crypto_mediator__res_resolution
+   :version: 1
+   :reqtype: Functional
+   :security: YES
+   :safety: QM
+   :status: valid
+   :satisfied_by: comp__crypto_mediator
+
+   The mediator shall resolve a named resource through the resolver registered
+   for its resource type, passing the client and the resource name, and shall
+   return the resolver's result. A resource type with no registered resolver
+   shall be refused as unsupported.
+
+.. comp_req:: Create the mediator with the entries its subsystems register
+   :id: comp_req__crypto_mediator__registration
+   :version: 1
+   :reqtype: Functional
+   :security: YES
+   :safety: QM
+   :status: valid
+   :satisfied_by: comp__crypto_mediator
+
+   The mediator shall be created with the context factories, resource resolvers
+   and mediator queries that its subsystems register, before it serves a request.
+   A missing data manager or provider manager, a rejected registration, a null
+   registrar, or a mediator query registered for an operation that the mediator
+   implements itself shall prevent its creation.

@@ -49,6 +49,14 @@ score::crypto::Expected<data_manager::DataNodeId, common::DaemonErrorCode> Conte
     const ContextAssemblyRequest& request,
     const score::crypto::daemon::common::Handler::Sptr& handler) const
 {
+    // A handler source that reports success must return a handler; a null one is refused before any node exists.
+    if (!handler)
+    {
+        score::mw::log::LogError() << "[SCORE_API_MED] ERROR - No handler to assemble for context type: "
+                                   << request.context_type;
+        return score::crypto::make_unexpected(common::DaemonErrorCode::kInternalError);
+    }
+
     auto context_node = std::make_shared<score::crypto::daemon::common::ContextDataNode>(handler, request.algorithm);
 
     auto context_id_res = m_data_manager->addChildNode(request.client_id, request.connection_id, context_node);
