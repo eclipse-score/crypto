@@ -28,6 +28,9 @@
 namespace score::crypto::daemon::cert_management
 {
 
+/// Revision of a slot's certificate. It advances with every write or invalidation that can change the certificate.
+using CertificateRevision = std::uint64_t;
+
 /// Read-only view of the certificate slot manager.
 ///
 /// Consumers outside the certificate-management component receive this interface. It exposes the
@@ -51,10 +54,11 @@ class ICertSlotManager
     /// @brief Load the certificate stored in a slot.
     /// @param slot      Slot to read.
     /// @param client_id Client requesting the read; checked against the slot's access policy.
+    /// @param revision Optional. Set on success to the revision the certificate was read at. A CRL write that
+    ///        passes it is refused if the slot's certificate has changed since.
     /// @return The parsed certificate, an access-policy or registry error, or the backend's error.
-    [[nodiscard]] virtual score::crypto::Expected<CertObject::Sptr, common::DaemonErrorCode> LoadCertificate(
-        CertSlotHandle slot,
-        data_manager::ClientId client_id) = 0;
+    [[nodiscard]] virtual score::crypto::Expected<CertObject::Sptr, common::DaemonErrorCode>
+    LoadCertificate(CertSlotHandle slot, data_manager::ClientId client_id, CertificateRevision* revision = nullptr) = 0;
 
     /// @brief Return the state and descriptive information of a slot.
     /// @param slot      Slot to inspect.

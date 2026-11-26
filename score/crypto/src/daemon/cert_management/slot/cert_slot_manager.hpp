@@ -66,10 +66,15 @@ class SlotHandlerFactory;
 /// are made without holding that mutex and may be invoked concurrently for the
 /// same handler. Each ICertSlotHandler implementation must serialize operations
 /// on its slot, including reads that must be consistent with writes; independent
-/// slot handlers can proceed concurrently. A load records the generation of the
+/// slot handlers can proceed concurrently. A load records the revision of the
 /// part it reads (certificate or CRL) before its backend read and caches the result
-/// only if that generation is unchanged afterwards, so a read that overlaps a write
+/// only if that revision is unchanged afterwards, so a read that overlaps a write
 /// or invalidation is returned to its caller but never cached.
+///
+/// Writes hold a per-slot write mutex across the backend write and the cache invalidation; reads
+/// do not take it. StoreCrl checks the certificate revision under that mutex, so a CRL is stored
+/// only with the certificate it was validated against. Exclusive trust-store member slots are
+/// written through the trust-store seam and serialized by the trust store.
 class CertSlotManager final : public ICertSlotManager
 {
   public:
@@ -96,9 +101,12 @@ class CertSlotManager final : public ICertSlotManager
     /// slot's handler and cached.
     /// @param slot      Slot to read.
     /// @param client_id Client requesting the read; checked against the slot's access policy.
+    /// @param revision Optional; see ICertSlotManager::LoadCertificate().
     /// @return The parsed certificate, or an access-policy, registry, factory, or handler error.
     [[nodiscard]] score::crypto::Expected<CertObject::Sptr, score::crypto::daemon::common::DaemonErrorCode>
-    LoadCertificate(CertSlotHandle slot, data_manager::ClientId client_id) override;
+    LoadCertificate(CertSlotHandle slot,
+                    data_manager::ClientId client_id,
+                    CertificateRevision* revision = nullptr) override;
 
     /// @brief Return the state and descriptive information of a slot.
     /// @param slot      Slot to inspect.
@@ -162,12 +170,14 @@ class CertSlotManager final : public ICertSlotManager
     /// @param content_may_have_changed Optional. Set to true when the write reaches the backend, even if it fails.
     ///        The caller uses it to decide whether dependent trust stores must be refreshed.
     ///        Not modified when the write is refused or no handler is available.
+    /// @param certificate_revision Optional. Set on success to the revision of the stored certificate.
     /// @return Success, or an access-policy, registry, factory, or handler error.
     [[nodiscard]] score::crypto::Expected<std::monostate, score::crypto::daemon::common::DaemonErrorCode>
     StoreCertificate(CertSlotHandle slot,
                      data_manager::ClientId client_id,
                      const CertObject& cert,
-                     bool* content_may_have_changed = nullptr);
+                     bool* content_may_have_changed = nullptr,
+                     CertificateRevision* certificate_revision = nullptr);
 
     /// @brief Erase the certificate and any CRL stored in a slot.
     /// @details The slot's certificate and CRL caches are invalidated after the write, whether or not it succeeded.
@@ -186,14 +196,17 @@ class CertSlotManager final : public ICertSlotManager
     /// @param slot      Slot to write.
     /// @param client_id Client requesting the write; needs slot access and write permission.
     /// @param crl       Encoded CRL bytes, encoding, and optional validated metadata; copied by the handler.
+    /// @param certificate_revision Revision of the certificate the CRL was validated against.
     /// @param content_may_have_changed Optional. Set to true when the write reaches the backend, even if it fails.
     ///        The caller uses it to decide whether dependent trust stores must be refreshed.
     ///        Not modified when the write is refused or no handler is available.
-    /// @return Success, or an access-policy, registry, factory, or handler error.
+    /// @return Success; kResourceBusy if the certificate changed since @p certificate_revision; or an access-policy,
+    ///         registry, factory, or handler error.
     [[nodiscard]] score::crypto::Expected<std::monostate, score::crypto::daemon::common::DaemonErrorCode> StoreCrl(
         CertSlotHandle slot,
         data_manager::ClientId client_id,
         const CrlData& crl,
+        CertificateRevision certificate_revision,
         bool* content_may_have_changed = nullptr);
 
     /// @brief Remove the CRL stored in a slot.
@@ -265,13 +278,35 @@ class CertSlotManager final : public ICertSlotManager
     [[nodiscard]] score::crypto::Expected<ICertSlotHandler::Sptr, common::DaemonErrorCode> GetOrCreate(
         CertSlotHandle slot);
 
+    /// A slot's handler, with the slot's write mutex held for one write.
+    struct SlotWriter
+    {
+        ICertSlotHandler::Sptr handler;
+        std::unique_lock<std::mutex> lock;
+    };
+
+    /// @brief Check write access to a slot and lock its write mutex for one write.
+    /// @param slot      Slot to write.
+    /// @param client_id Client requesting the write; needs slot access and write permission.
+    /// @param operation Name of the write, for the log.
+    /// @return The handler with the write mutex held, or an access-policy, registry, or factory error.
+    [[nodiscard]] score::crypto::Expected<SlotWriter, common::DaemonErrorCode>
+    AuthorizeAndLockSlotForWrite(CertSlotHandle slot, data_manager::ClientId client_id, std::string_view operation);
+
+    /// @brief Return the slot's current certificate revision.
+    /// @details Takes m_mutex.
+    /// @param slot Slot to inspect.
+    /// @return The revision.
+    [[nodiscard]] CertificateRevision GetCertificateRevision(CertSlotHandle slot);
+
     /// @brief Load a slot's certificate through the certificate cache.
     /// @details Shared body of LoadCertificate() and LoadCertificateForTrustStore(): serves the cache and otherwise
     /// reads through the slot's handler. Manages its own locking; the backend call is made without holding m_mutex.
-    /// @param slot Slot to read.
+    /// @param slot     Slot to read.
+    /// @param revision Optional; see ICertSlotManager::LoadCertificate().
     /// @return The parsed certificate, or a factory or handler error.
     [[nodiscard]] score::crypto::Expected<CertObject::Sptr, score::crypto::daemon::common::DaemonErrorCode>
-    LoadCertificateCached(CertSlotHandle slot);
+    LoadCertificateCached(CertSlotHandle slot, CertificateRevision* revision = nullptr);
 
     /// Presence and metadata of one slot's CRL, as cached without the CRL bytes.
     struct CrlState
@@ -281,31 +316,31 @@ class CertSlotManager final : public ICertSlotManager
     };
 
     /// Everything cached for one slot. The certificate and the CRL are invalidated independently,
-    /// and each has a generation that its invalidation advances. A load that overlapped an
+    /// and each has a revision that its invalidation advances. A load that overlapped an
     /// invalidation of its own part is returned to its caller but not cached. The certificate and the
     /// CRL snapshot are held weakly, so they are freed when no holder remains; the CRL state is a small
     /// value held strongly.
     struct SlotCache
     {
         std::weak_ptr<CertObject> certificate;
-        uint64_t certificate_generation{0};
+        uint64_t certificate_revision{0};
 
         /// Unset until the CRL state has been loaded for the first time.
         std::optional<CrlState> crl_state;
         std::weak_ptr<const CrlData> crl_snapshot;
-        uint64_t crl_generation{0};
+        uint64_t crl_revision{0};
 
         void ResetCertificate()
         {
             certificate.reset();
-            ++certificate_generation;
+            ++certificate_revision;
         }
 
         void ResetCrl()
         {
             crl_state.reset();
             crl_snapshot.reset();
-            ++crl_generation;
+            ++crl_revision;
         }
     };
 
@@ -339,6 +374,9 @@ class CertSlotManager final : public ICertSlotManager
     std::unordered_map<uint32_t, ICertSlotHandler::Sptr> m_handlers;
     /// Certificate and CRL caches keyed by slot index. See SlotCache.
     std::unordered_map<uint32_t, SlotCache> m_slot_cache;
+    /// Write mutex per slot index. Entries are never erased, so a reference stays valid without m_mutex.
+    /// Lock order: a write mutex before m_mutex.
+    std::unordered_map<uint32_t, std::mutex> m_slot_write_mutexes;
     mutable std::mutex m_mutex;
 
     static constexpr std::string_view kLogPrefix{"[CERT_SLOT_MANAGER] "};

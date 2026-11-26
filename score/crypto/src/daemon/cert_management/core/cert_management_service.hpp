@@ -155,11 +155,15 @@ class CertManagementService final
     /// @param slot Handle identifying the certificate slot.
     /// @param client_id Client performing the write.
     /// @param cert Certificate content to store in the slot.
+    /// @param certificate_revision Optional. Set on success to the revision of the stored certificate.
     /// @return An empty value on success, or an error if the write fails or is not permitted.
     /// @note Thread safety: Slot writes are serialized by CertSlotManager. Direct slot readers observe the new state
     /// once the write completes. Trust-store readers observe it only after trust-store notification completes.
-    [[nodiscard]] score::crypto::Expected<std::monostate, common::DaemonErrorCode>
-    UpdateSlot(CertSlotHandle slot, data_manager::ClientId client_id, const CertObject& cert);
+    [[nodiscard]] score::crypto::Expected<std::monostate, common::DaemonErrorCode> UpdateSlot(
+        CertSlotHandle slot,
+        data_manager::ClientId client_id,
+        const CertObject& cert,
+        CertificateRevision* certificate_revision = nullptr);
 
     /// @brief Clear a slot's certificate and notify trust stores that reference it.
     /// @param slot Handle identifying the certificate slot.
@@ -177,14 +181,18 @@ class CertManagementService final
     /// @param slot Handle identifying the certificate slot.
     /// @param client_id Client performing the write.
     /// @param crl Encoded CRL bytes, encoding, and optional parsed metadata.
-    /// @return An empty value on success, or an error if the write fails or is not permitted.
+    /// @param certificate_revision Revision of the slot certificate the CRL was validated against.
+    /// @return An empty value on success; kResourceBusy if the slot's certificate changed since
+    ///         @p certificate_revision; or an error if the write fails or is not permitted.
     /// @details The bytes are stored without validation. The caller validates the CRL against the slot's issuer
-    /// certificate (ICertParser::ValidateCrl) and supplies the resulting metadata.
-    /// @note Thread safety: Writes to one slot are serialized by that slot's handler. Direct slot readers observe the
-    /// new state once the write completes. Trust-store readers observe it only after trust-store notification
-    /// completes.
-    [[nodiscard]] score::crypto::Expected<std::monostate, common::DaemonErrorCode>
-    UpdateSlot(CertSlotHandle slot, data_manager::ClientId client_id, const CrlData& crl);
+    /// certificate (ICertParser::ValidateCrl) and supplies the resulting metadata and the certificate's revision.
+    /// @note Thread safety: Slot writes are serialized by CertSlotManager. Direct slot readers observe the new state
+    /// once the write completes. Trust-store readers observe it only after trust-store notification completes.
+    [[nodiscard]] score::crypto::Expected<std::monostate, common::DaemonErrorCode> UpdateSlot(
+        CertSlotHandle slot,
+        data_manager::ClientId client_id,
+        const CrlData& crl,
+        CertificateRevision certificate_revision);
 
     /// @brief Delete a slot's CRL and notify trust stores that reference the slot.
     /// @param slot Handle identifying the certificate slot.

@@ -30,6 +30,7 @@
 //     avoid repeated disk reads (certificate cache in CertSlotManager)
 //   - Mediator-style client cleanup isolates clients — purging one leaves the other intact
 //   - UpdateSlot/ClearSlot propagate through the TrustStoreManager anchor cache
+//   - A slot CRL is stored only with the revision of the certificate the slot holds
 //   - Public-key query writes the key only for the fingerprint the caller presents;
 //     a mismatch is refused and the caller's buffer is left unchanged
 
@@ -221,6 +222,14 @@ class CertManagementServiceTest : public ::testing::Test
         if (!result.has_value())
             return {};
         return result.value();
+    }
+
+    // Revision of the fixture slot's current certificate, which a CRL validated against it is stored with.
+    cert::CertificateRevision CurrentRevision()
+    {
+        cert::CertificateRevision revision{};
+        EXPECT_TRUE(m_slot_manager->LoadCertificate(m_slot_handle, kClientA, &revision).has_value());
+        return revision;
     }
 
     std::filesystem::path m_dir;
@@ -732,7 +741,8 @@ TEST_F(CertManagementServiceTest, ResolveCertObjectWithCrlMetadata_SlotHasPersis
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata},
+                                 CurrentRevision())
                     .has_value());
 
     const auto resolved = m_service->ResolveCertObjectWithCrlMetadata(kClientA, result.node_id);
@@ -753,7 +763,8 @@ TEST_F(CertManagementServiceTest, ResolveCertObjectWithCrlMetadata_SessionCrlPre
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{slot_crl_bytes, score::crypto::FormatType::kDer, slot_metadata})
+                                 cert::CrlData{slot_crl_bytes, score::crypto::FormatType::kDer, slot_metadata},
+                                 CurrentRevision())
                     .has_value());
 
     // ...but attach a *different* session-scoped CRL to this entry.
@@ -800,7 +811,8 @@ TEST_F(CertManagementServiceTest, ResolveCertObjectWithCrlMetadata_SlotNodeNotYe
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata},
+                                 CurrentRevision())
                     .has_value());
 
     // Resolve the bare slot node (kCertSlot), never Load()-ed into a CertEntry.
@@ -849,7 +861,8 @@ TEST_F(CertManagementServiceTest, ResolveCrl_SlotHasPersistedCrl_NoSessionCrl_Re
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, slot_metadata},
+                                 CurrentRevision())
                     .has_value());
 
     const auto resolved = m_service->ResolveCrlData(kClientA, result.node_id);
@@ -871,7 +884,8 @@ TEST_F(CertManagementServiceTest, ResolveCrl_SessionCrlPresent_TakesPrecedenceOv
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{slot_crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x11U)})
+                                 cert::CrlData{slot_crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x11U)},
+                                 CurrentRevision())
                     .has_value());
 
     // ...but attach a session-scoped CRL to this entry.
@@ -921,7 +935,8 @@ TEST_F(CertManagementServiceTest, ResolveCrl_BareSlotNodeNotYetLoaded_ReadsCrlFr
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x33U)})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x33U)},
+                                 CurrentRevision())
                     .has_value());
 
     const auto slot_node_id = m_service->ResolveCertSlotNode(std::string{kAppResource}, kClientA);
@@ -977,10 +992,12 @@ TEST_F(CertManagementServiceTest, UpdateSlot_Crl_NotifiesTrustStoreCrlCache)
 
     const std::vector<std::uint8_t> crl_bytes{0xC0U, 0xC1U, 0xC2U};
     const auto metadata = MakeCrlMetadata(0x44U);
-    ASSERT_TRUE(
-        m_service
-            ->UpdateSlot(m_slot_handle, kClientA, cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, metadata})
-            .has_value());
+    ASSERT_TRUE(m_service
+                    ->UpdateSlot(m_slot_handle,
+                                 kClientA,
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, metadata},
+                                 CurrentRevision())
+                    .has_value());
 
     // No manual notify call — the service must have pushed it already.
     const auto crls = store->GetCrls().value();
@@ -1016,7 +1033,8 @@ TEST_F(CertManagementServiceTest, ClearSlotCrl_NotifiesTrustStoreCrlCache)
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x55U)})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x55U)},
+                                 CurrentRevision())
                     .has_value());
     ASSERT_EQ(store->GetCrls().value().size(), 1U);
 
@@ -1046,7 +1064,8 @@ TEST_F(CertManagementServiceTest, CrlCache_StaysConsistentAcrossImportDeleteAndR
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes_1, score::crypto::FormatType::kDer, metadata_1})
+                                 cert::CrlData{crl_bytes_1, score::crypto::FormatType::kDer, metadata_1},
+                                 CurrentRevision())
                     .has_value());
 
     ASSERT_TRUE(slot_manager->HasCrl(m_slot_handle, kClientA).value());
@@ -1061,7 +1080,8 @@ TEST_F(CertManagementServiceTest, CrlCache_StaysConsistentAcrossImportDeleteAndR
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes_2, score::crypto::FormatType::kPem, metadata_2})
+                                 cert::CrlData{crl_bytes_2, score::crypto::FormatType::kPem, metadata_2},
+                                 CurrentRevision())
                     .has_value());
 
     read_metadata = slot_manager->GetCrlMetadata(m_slot_handle, kClientA);
@@ -1090,7 +1110,8 @@ TEST_F(CertManagementServiceTest, CrlCache_InvalidatedByCertificateUpdate)
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x88U)})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x88U)},
+                                 CurrentRevision())
                     .has_value());
     ASSERT_TRUE(slot_manager->HasCrl(m_slot_handle, kClientA).value());
 
@@ -1107,6 +1128,75 @@ TEST_F(CertManagementServiceTest, CrlCache_InvalidatedByCertificateUpdate)
     const auto snapshot = slot_manager->LoadCrlData(m_slot_handle, kClientA);
     ASSERT_TRUE(snapshot.has_value());
     EXPECT_EQ(snapshot.value(), nullptr);
+}
+
+TEST_F(CertManagementServiceTest, SlotCrl_ValidatedAgainstReplacedCertificate_IsRefused)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_cert_management__persistence");
+    RecordProperty("Description",
+                   "Refuses to store a CRL validated against a certificate that the slot no longer holds.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    auto* slot_manager = m_service->GetSlotManager().get();
+    ASSERT_NE(slot_manager, nullptr);
+
+    // The CRL is validated against the slot's current certificate ...
+    const auto issuer_revision = CurrentRevision();
+
+    // ... which another write replaces before the CRL is stored.
+    std::ifstream file(m_cert_updated_path, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+    const std::vector<std::uint8_t> updated_bytes{std::istreambuf_iterator<char>(file), {}};
+    auto parsed_updated =
+        m_parser->ParseCertificate(updated_bytes.data(), updated_bytes.size(), score::crypto::FormatType::kPem);
+    ASSERT_TRUE(parsed_updated.has_value());
+    ASSERT_TRUE(m_service->UpdateSlot(m_slot_handle, kClientA, **parsed_updated).has_value());
+
+    const std::vector<std::uint8_t> crl_bytes{0x01U, 0x02U};
+    const auto stored =
+        m_service->UpdateSlot(m_slot_handle,
+                              kClientA,
+                              cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x66U)},
+                              issuer_revision);
+    ASSERT_FALSE(stored.has_value());
+    EXPECT_EQ(stored.error(), common::DaemonErrorCode::kResourceBusy);
+
+    ASSERT_TRUE(slot_manager->HasCrl(m_slot_handle, kClientA).has_value());
+    EXPECT_FALSE(slot_manager->HasCrl(m_slot_handle, kClientA).value());
+}
+
+TEST_F(CertManagementServiceTest, SlotCrl_WithRevisionOfStoredCertificate_IsStored)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_cert_management__persistence");
+    RecordProperty("Description", "Stores a CRL with the revision reported by the certificate write it follows.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    auto* slot_manager = m_service->GetSlotManager().get();
+    ASSERT_NE(slot_manager, nullptr);
+
+    std::ifstream file(m_cert_updated_path, std::ios::binary);
+    ASSERT_TRUE(file.is_open());
+    const std::vector<std::uint8_t> updated_bytes{std::istreambuf_iterator<char>(file), {}};
+    auto parsed_updated =
+        m_parser->ParseCertificate(updated_bytes.data(), updated_bytes.size(), score::crypto::FormatType::kPem);
+    ASSERT_TRUE(parsed_updated.has_value());
+    cert::CertificateRevision stored_revision{};
+    ASSERT_TRUE(m_service->UpdateSlot(m_slot_handle, kClientA, **parsed_updated, &stored_revision).has_value());
+
+    // The revision reported by the write is the one a later read of the stored certificate reports.
+    EXPECT_EQ(stored_revision, CurrentRevision());
+
+    const std::vector<std::uint8_t> crl_bytes{0x01U, 0x02U};
+    ASSERT_TRUE(m_service
+                    ->UpdateSlot(m_slot_handle,
+                                 kClientA,
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x77U)},
+                                 stored_revision)
+                    .has_value());
+    ASSERT_TRUE(slot_manager->HasCrl(m_slot_handle, kClientA).has_value());
+    EXPECT_TRUE(slot_manager->HasCrl(m_slot_handle, kClientA).value());
 }
 
 TEST_F(CertManagementServiceTest, CrlSnapshot_NullWhenSlotHasNoCrl)
@@ -1126,7 +1216,8 @@ TEST_F(CertManagementServiceTest, CrlSnapshot_SharedBetweenReadersAndReplacedByI
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes_1, score::crypto::FormatType::kDer, MakeCrlMetadata(0x11U)})
+                                 cert::CrlData{crl_bytes_1, score::crypto::FormatType::kDer, MakeCrlMetadata(0x11U)},
+                                 CurrentRevision())
                     .has_value());
 
     const auto first = slot_manager->LoadCrlData(m_slot_handle, kClientA);
@@ -1141,7 +1232,8 @@ TEST_F(CertManagementServiceTest, CrlSnapshot_SharedBetweenReadersAndReplacedByI
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes_2, score::crypto::FormatType::kPem, metadata_2})
+                                 cert::CrlData{crl_bytes_2, score::crypto::FormatType::kPem, metadata_2},
+                                 CurrentRevision())
                     .has_value());
 
     const auto replaced = slot_manager->LoadCrlData(m_slot_handle, kClientA);
@@ -1164,10 +1256,12 @@ TEST_F(CertManagementServiceTest, CrlSnapshot_AgreesWithMetadataQueries)
     auto slot_manager = m_service->GetSlotManager();
     const auto metadata = MakeCrlMetadata(0x33U);
     const std::vector<std::uint8_t> crl_bytes{0x01U};
-    ASSERT_TRUE(
-        m_service
-            ->UpdateSlot(m_slot_handle, kClientA, cert::CrlData{crl_bytes, score::crypto::FormatType::kPem, metadata})
-            .has_value());
+    ASSERT_TRUE(m_service
+                    ->UpdateSlot(m_slot_handle,
+                                 kClientA,
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kPem, metadata},
+                                 CurrentRevision())
+                    .has_value());
 
     const auto snapshot = slot_manager->LoadCrlData(m_slot_handle, kClientA);
     ASSERT_TRUE(snapshot.has_value());
@@ -1191,7 +1285,8 @@ TEST_F(CertManagementServiceTest, CrlImport_KeepsCachedCertificate)
     ASSERT_TRUE(m_service
                     ->UpdateSlot(m_slot_handle,
                                  kClientA,
-                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x99U)})
+                                 cert::CrlData{crl_bytes, score::crypto::FormatType::kDer, MakeCrlMetadata(0x99U)},
+                                 CurrentRevision())
                     .has_value());
 
     const auto second = slot_manager->LoadCertificate(m_slot_handle, kClientA);

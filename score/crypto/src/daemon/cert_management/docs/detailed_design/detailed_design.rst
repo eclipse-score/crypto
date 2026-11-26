@@ -109,8 +109,11 @@ A certificate replacement invalidates its CRL and refreshes referencing trust
 stores as described in :ref:`Writing a certificate slot
 <cert_management_write_certificate_slot>`.
 
-Import stores the supplied CRL as given and does not validate it against its
-issuer certificate.
+Import validates the CRL against its issuer: the certificate for a
+session-scoped CRL, the slot's certificate for a persistent one. A persistent
+CRL, including one saved with its certificate, is stored only while the slot
+holds the certificate it was validated against; otherwise the write is refused
+with ``kResourceBusy``.
 
 .. uml:: uc_crl_import.puml
 

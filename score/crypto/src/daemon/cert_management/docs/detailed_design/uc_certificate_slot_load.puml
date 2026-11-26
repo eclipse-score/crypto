@@ -45,7 +45,7 @@ else cache miss
   SlotManager -> Backend : LoadCertificate(slot config)
   Backend -> Backend : read bytes, parse DER or PEM
   Backend --> SlotManager : immutable CertObject
-  SlotManager -> SlotManager : cache weakly\n(only if the slot generation is unchanged)
+  SlotManager -> SlotManager : cache weakly\n(only if the slot revision is unchanged)
   SlotManager --> Service : CertObject
 end
 Service -> Registry : RegisterSlotCert(slot, new CertEntry(client))

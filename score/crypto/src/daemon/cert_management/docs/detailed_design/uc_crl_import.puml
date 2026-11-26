@@ -32,13 +32,15 @@ participant "TrustStoreHandler" as StoreHandler
 participant "TrustStoreManager" as TrustManager
 
 App -> Context : ImportCrl(crl, format, certificate resource, persist)
-Context -> Executor : CRL_IMPORT
-group Planned: import-time validation
-  Executor -> Parser : ValidateCrl(crl, issuer certificate)
-  Parser --> Executor : CRL metadata, or error
+Context -> Executor : CRL_IMPORT or CRL_IMPORT_TO_SLOT
+opt persist = true
+  Executor -> SlotManager : LoadCertificate(slot, client, &revision)
+  SlotManager --> Executor : issuer certificate, revision
 end
+Executor -> Parser : ValidateCrl(crl, issuer certificate)
+Parser --> Executor : CRL metadata, or error
 
-alt planned: CRL rejected by validation
+alt CRL rejected by validation
   Executor --> Context : error response
 else persist = false
   Executor -> Entry : AttachSessionCrl(CrlData)
@@ -49,20 +51,27 @@ else persist = false
   end note
   Executor --> Context : success
 else persist = true (slot resource, write access required)
-  Executor -> Service : UpdateSlot(slot, client, CrlData)
-  Service -> SlotManager : StoreCrl(slot, client, CrlData)
+  Executor -> Service : UpdateSlot(slot, client, CrlData, revision)
+  Service -> SlotManager : StoreCrl(slot, client, CrlData, revision)
   SlotManager -> Registry : CheckWriteAccess(slot, client)
-  SlotManager -> SlotManager : store CRL, invalidate CRL cache entry
-  SlotManager --> Service : success
-  Service -> TrustManager : NotifySlotCrlChanged(slot)
-  loop each trust store referencing the slot
-    TrustManager -> StoreHandler : OnSlotCrlChanged(slot)
-    StoreHandler -> SlotManager : LoadCrlDataForTrustStore(slot)
-    SlotManager --> StoreHandler : shared CrlData::Sptrc
-    StoreHandler -> StoreHandler : replace the member's CRL;\na disabled member keeps none
+  SlotManager -> SlotManager : lock the slot's write mutex
+  alt certificate revision changed since the issuer was read
+    SlotManager --> Service : kResourceBusy
+    Service --> Executor : kResourceBusy
+    Executor --> Context : error response
+  else revision unchanged
+    SlotManager -> SlotManager : store CRL, invalidate CRL cache entry
+    SlotManager --> Service : success
+    Service -> TrustManager : NotifySlotCrlChanged(slot)
+    loop each trust store referencing the slot
+      TrustManager -> StoreHandler : OnSlotCrlChanged(slot)
+      StoreHandler -> SlotManager : LoadCrlDataForTrustStore(slot)
+      SlotManager --> StoreHandler : shared CrlData::Sptrc
+      StoreHandler -> StoreHandler : replace the member's CRL;\na disabled member keeps none
+    end
+    Service --> Executor : success
+    Executor --> Context : success
   end
-  Service --> Executor : success
-  Executor --> Context : success
 end
 Context --> App : result
 

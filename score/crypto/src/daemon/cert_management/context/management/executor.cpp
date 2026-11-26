@@ -330,7 +330,9 @@ Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, com
         return score::crypto::make_unexpected(certificate.error());
     }
 
-    const auto stored = m_service->UpdateSlot(slot.value(), ctx.client_id, *certificate.value());
+    // The stored certificate's revision ties a propagated CRL to that certificate.
+    CertificateRevision stored_revision{};
+    const auto stored = m_service->UpdateSlot(slot.value(), ctx.client_id, *certificate.value(), &stored_revision);
     if (!stored.has_value())
     {
         score::mw::log::LogError() << kLogPrefix << "HandleSave: slot write failed";
@@ -353,7 +355,8 @@ Response CertManagementExecutor::HandleSave(const CertExecutionContext& ctx, com
             }
             if (crl.value())
             {
-                const auto propagated = m_service->UpdateSlot(slot.value(), ctx.client_id, *crl.value());
+                const auto propagated =
+                    m_service->UpdateSlot(slot.value(), ctx.client_id, *crl.value(), stored_revision);
                 if (!propagated.has_value())
                 {
                     return score::crypto::make_unexpected(propagated.error());
@@ -649,7 +652,9 @@ Response CertManagementExecutor::HandleCrlImportToSlot(const CertExecutionContex
         score::mw::log::LogError() << kLogPrefix << "HandleCrlImportToSlot: no slot manager configured";
         return score::crypto::make_unexpected(Error::kInternalError);
     }
-    auto issuer = slot_manager->LoadCertificate(slot.value(), ctx.client_id);
+    // The issuer's revision ties the CRL to the certificate it is validated against.
+    CertificateRevision issuer_revision{};
+    auto issuer = slot_manager->LoadCertificate(slot.value(), ctx.client_id, &issuer_revision);
     if (!issuer.has_value())
     {
         score::mw::log::LogError() << kLogPrefix
@@ -663,7 +668,7 @@ Response CertManagementExecutor::HandleCrlImportToSlot(const CertExecutionContex
         return score::crypto::make_unexpected(crl.error());
     }
 
-    const auto stored = m_service->UpdateSlot(slot.value(), ctx.client_id, crl.value());
+    const auto stored = m_service->UpdateSlot(slot.value(), ctx.client_id, crl.value(), issuer_revision);
     if (!stored.has_value())
     {
         return score::crypto::make_unexpected(stored.error());

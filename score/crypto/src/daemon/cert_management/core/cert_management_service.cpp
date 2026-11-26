@@ -113,16 +113,19 @@ void CertManagementService::CleanupClient(data_manager::ClientId client_id)
 // Slot mutation — wraps CertSlotManager and notifies trust stores after each write that reaches the backend
 // ---------------------------------------------------------------------------
 
-score::crypto::Expected<std::monostate, Error> CertManagementService::UpdateSlot(CertSlotHandle slot,
-                                                                                 data_manager::ClientId client_id,
-                                                                                 const CertObject& cert)
+score::crypto::Expected<std::monostate, Error> CertManagementService::UpdateSlot(
+    CertSlotHandle slot,
+    data_manager::ClientId client_id,
+    const CertObject& cert,
+    CertificateRevision* certificate_revision)
 {
     if (!m_slot_manager)
     {
         return score::crypto::make_unexpected(Error::kInternalError);
     }
     bool content_may_have_changed{false};
-    auto result = m_slot_manager->StoreCertificate(slot, client_id, cert, &content_may_have_changed);
+    auto result =
+        m_slot_manager->StoreCertificate(slot, client_id, cert, &content_may_have_changed, certificate_revision);
     // Refused and handler-less writes leave the stored content unchanged, so trust stores are not reloaded.
     if (content_may_have_changed)
     {
@@ -148,16 +151,18 @@ score::crypto::Expected<std::monostate, Error> CertManagementService::ClearSlot(
     return result;
 }
 
-score::crypto::Expected<std::monostate, Error> CertManagementService::UpdateSlot(CertSlotHandle slot,
-                                                                                 data_manager::ClientId client_id,
-                                                                                 const CrlData& crl)
+score::crypto::Expected<std::monostate, Error> CertManagementService::UpdateSlot(
+    CertSlotHandle slot,
+    data_manager::ClientId client_id,
+    const CrlData& crl,
+    CertificateRevision certificate_revision)
 {
     if (!m_slot_manager)
     {
         return score::crypto::make_unexpected(Error::kInternalError);
     }
     bool content_may_have_changed{false};
-    auto result = m_slot_manager->StoreCrl(slot, client_id, crl, &content_may_have_changed);
+    auto result = m_slot_manager->StoreCrl(slot, client_id, crl, certificate_revision, &content_may_have_changed);
     // Refused and handler-less writes leave the stored CRL unchanged, so trust stores are not reloaded.
     if (content_may_have_changed)
     {
