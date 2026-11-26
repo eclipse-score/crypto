@@ -102,9 +102,9 @@ struct CipherContextConfig : public BaseContextConfig
         return *this;
     }
 
-    CipherContextConfig& SetExtendedParameter(const std::string& key, const std::string& value)
+    CipherContextConfig& SetExtendedParameter(const std::string& parameter_key, const std::string& value)
     {
-        BaseContextConfig::SetExtendedParameter(key, value);
+        BaseContextConfig::SetExtendedParameter(parameter_key, value);
         return *this;
     }
 };

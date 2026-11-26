@@ -136,14 +136,14 @@ struct ProviderConfig
 
     /// @brief Construct provider metadata with explicit identity and state.
     /// @param name Human-readable provider identifier.
-    /// @param cryptoType Functional provider category.
-    /// @param enabled Whether the provider is enabled for initialization.
-    /// @param required Whether startup fails if the provider is unavailable.
+    /// @param providerType Functional provider category.
+    /// @param isEnabled Whether the provider is enabled for initialization.
+    /// @param isRequired Whether startup fails if the provider is unavailable.
     ProviderConfig(const common::ProviderName& name,
-                   common::CryptoProviderType cryptoType,
-                   bool enabled = true,
-                   bool required = false)
-        : providerName(name), cryptoType(cryptoType), enabled(enabled), required(required)
+                   common::CryptoProviderType providerType,
+                   bool isEnabled = true,
+                   bool isRequired = false)
+        : providerName(name), cryptoType(providerType), enabled(isEnabled), required(isRequired)
     {
     }
 };

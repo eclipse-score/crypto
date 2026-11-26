@@ -307,11 +307,11 @@ class OperationResponseBuilder
         return *this;
     };
 
-    OperationResponseBuilder& return_error(score::crypto::CryptoErrorCode error)
+    OperationResponseBuilder& return_error(score::crypto::CryptoErrorCode error_code)
     {
         if (validateOperationExists())
         {
-            operations.back().result = static_cast<OperationResult>(error);
+            operations.back().result = static_cast<OperationResult>(error_code);
         }
         return *this;
     };
@@ -319,9 +319,9 @@ class OperationResponseBuilder
     /// @brief Daemon-internal overload: translates DaemonErrorCode to the wire
     /// CryptoErrorCode value at the IPC boundary. Daemon code should prefer this
     /// overload so handler/executor files never reference CryptoErrorCode directly.
-    OperationResponseBuilder& return_error(score::crypto::daemon::common::DaemonErrorCode error)
+    OperationResponseBuilder& return_error(score::crypto::daemon::common::DaemonErrorCode error_code)
     {
-        return return_error(score::crypto::daemon::common::ToCryptoErrorCode(error));
+        return return_error(score::crypto::daemon::common::ToCryptoErrorCode(error_code));
     };
 
     OperationResponseBuilder& return_value_bool(bool val)
