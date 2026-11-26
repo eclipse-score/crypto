@@ -176,6 +176,24 @@ TEST_F(ContextAssemblerTest, UnknownConnectionFailsWithoutLeavingANode)
     EXPECT_EQ(handler->InitCalls(), 0);
 }
 
+TEST_F(ContextAssemblerTest, NullHandlerIsRefusedWithoutCreatingANode)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__assembly");
+    RecordProperty("Description",
+                   "A null handler, as a faulty factory or provider could return, is refused with an internal error "
+                   "and no context node is created.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto assembler = MakeAssembler();
+
+    const auto node_id = assembler.Assemble(Request("HASH"), nullptr);
+
+    ASSERT_FALSE(node_id.has_value());
+    EXPECT_EQ(node_id.error(), DaemonErrorCode::kInternalError);
+    EXPECT_TRUE(m_data_manager->AddedChildren().empty());
+}
+
 TEST_F(ContextAssemblerTest, KeyReferenceWithoutKeyManagementRemovesTheContextNode)
 {
     RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__assembly");

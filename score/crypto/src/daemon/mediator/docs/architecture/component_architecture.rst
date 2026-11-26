@@ -42,13 +42,14 @@ Overview
 
 The mediator handles these operation families:
 
-* **Context creation** (``CTX_CREATE``) — decode, arbitrate, assemble. Described
-  below.
+* **Context creation** (``CTX_CREATE``) — decode, select the handler, assemble.
+  Described below.
 * **Context close and shared-memory setup and teardown** — node lifecycle under
   the client's connection.
 * **Resource resolution** — session-level lookup of a named resource to a data
-  node, through one resolver per resource type. A resolver is registered when
-  the mediator is built; key slots are resolved through key management.
+  node, through the resolver registered for its resource type.
+* **Mediator queries** — operations that need no context, such as reading a
+  resource's metadata, served by the query registered for their operation code.
 * **Forwarding** — an operation addressed to an existing context is delivered to
   that context's handler.
 
@@ -75,6 +76,43 @@ data node under the connection for a shared-memory region, and teardown deletes
 it. Resource resolution looks up a resolver by resource type and returns the
 node it resolves to.
 
+Registered entries
+------------------
+
+Subsystems take part in the mediator through three registries. Each is filled
+once, while the mediator is created, and is only read afterwards.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 25 50
+
+   * - Registry
+     - Key
+     - Entry
+   * - Context factories
+     - Full context type, matched exactly
+     - Creates a new handler for each context of that type. Used for types that
+       a subsystem serves itself, instead of a provider.
+   * - Resource resolvers
+     - Resource type
+     - Turns a named resource into a data node for the client.
+   * - Mediator queries
+     - Operation code
+     - Serves a mediator operation that has no context.
+
+A subsystem registers all of its entries in one call, as an ``IMediatorRegistrar``.
+``MediatorFactory`` creates the mediator: it builds the registries, calls each
+registrar, builds the handler selector, which holds the provider arbiter and the
+context-factory registry, and the context assembler once, and hands them to the
+mediator. The daemon passes the subsystems and holds no registry
+logic. ``IMediator`` and ``MediatorDependencies`` name no subsystem. Key
+management stays a direct collaborator of the provider arbiter, for key
+affinity, and of the context assembler, for key authorization.
+
+The mediator is created once and serves every connection. It holds no state of its
+own, only the shared collaborators and the read-only registries, so concurrent
+requests need no locking inside the mediator.
+
 Context creation
 ----------------
 
@@ -90,16 +128,26 @@ Context creation is three steps with one owner each:
      - Turns the wire parameters into a typed ``ContextCreationRequest`` and
        rejects malformed requests. The only step that knows the parameter
        layout.
-   * - Arbitrate (``ProviderArbiter``)
-     - Chooses a provider and asks its handler factory for a handler.
+   * - Select (``HandlerSelector``)
+     - Chooses the handler. A context type with a registered factory is created by
+       that factory. Every other type is created through a provider chosen by the
+       provider arbiter.
    * - Assemble (``ContextAssembler``)
      - Creates the context node, binds and authorizes the key, initializes the
        handler, and undoes the node on failure.
 
+The selector applies one rule. The context-factory registry is consulted first, by
+exact match on the full context type. A factory-served context is not bound to a
+provider, receives the validated request including the client's provider
+preference, and is assembled exactly like any other context. For every other type
+the provider arbiter chooses the provider and asks its handler factory for the
+handler; the capability that a type's scope requires affects only this provider
+selection.
+
 The steps communicate through values, not through each other: the decoder
-produces a request, the arbiter returns a provider and a handler, and the
-assembler consumes the handler. The mediator's context-creation entry point
-only sequences them.
+produces a request, the selector returns a handler and, when a provider created
+it, that provider, and the assembler consumes the handler. The mediator's
+context-creation entry point only sequences them.
 
 Static decomposition
 --------------------
@@ -112,9 +160,10 @@ Responsibilities that stay out of each step
 -------------------------------------------
 
 * The decoder performs no provider or data-node work.
-* The arbiter does not create data nodes, bind keys or initialize handlers.
-* The assembler does not choose providers. It receives a handler that already
-  exists and a provider id.
+* The selector and the arbiter do not create data nodes, bind keys or initialize
+  handlers.
+* The assembler does not choose handlers or providers. It receives a handler that
+  already exists and a provider id.
 
 Division of validation
 ----------------------
@@ -148,8 +197,8 @@ Variation and reuse points
 The structure has two points where behaviour varies or is reused without
 changing the other steps.
 
-* **The source of a handler** is an arbitration concern only. Decoding and
-  assembly are unaffected, because assembly takes a handler without regard to
+* **The source of a handler** is a registered factory or a provider, and only the
+  selector distinguishes them. Decoding and assembly are unaffected, because assembly takes a handler without regard to
   where it came from.
 * **A daemon-internal caller that needs a context** — for example a handler that
   must have a signature produced by a key it is not allowed to read — reuses
@@ -159,5 +208,5 @@ changing the other steps.
   the check serves both paths. The mediator does not define the form of such a
   caller.
 
-A change to the wire format is confined to the decoder. Arbitration and assembly
+A change to the wire format is confined to the decoder. Selection and assembly
 consume the typed request unchanged.

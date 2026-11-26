@@ -50,12 +50,15 @@ cc_binary(
         "//score/crypto/src/daemon/control_plane",
         "//score/crypto/src/daemon/data_manager",
         "//score/crypto/src/daemon/data_plane",
+        "//score/crypto/src/daemon/key_management",
+        "//score/crypto/src/daemon/key_management:key_management_headers",
         "//score/crypto/src/daemon/mediator",
         "//score/crypto/src/daemon/provider:provider_manager_factory",
         "//score/crypto/src/ipc/message_passing_adapter:ipc_config",
         "//score/crypto/src/ipc/message_passing_adapter:message_passing_server",
-        "@score_communication//score/memory/shared",
+        "//score/crypto/types",
         "@score_baselibs//score/mw/log",
+        "@score_communication//score/memory/shared",
     ],
 )
 

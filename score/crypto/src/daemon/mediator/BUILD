@@ -40,8 +40,8 @@ cc_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//score/crypto/src/daemon/common",
-        "//score/crypto/src/daemon/common/context:context_types",
         "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/daemon/common/context:context_types",
     ],
 )
 
@@ -60,6 +60,7 @@ cc_test(
     deps = [
         ":mediator",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/common/context:context_registration",
         "//score/crypto/src/daemon/common/context:context_types",
         "//score/crypto/src/daemon/control_plane:request_handler_hdr",
         "@googletest//:gtest_main",
@@ -74,7 +75,9 @@ cc_library(
         "//score/crypto/common:crypto_common",
         "//score/crypto/src/daemon/common",
         "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/daemon/common/context:context_registration",
         "//score/crypto/src/daemon/common/context:handler_headers",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
         "//score/crypto/src/daemon/data_manager",
         "//score/crypto/src/daemon/provider:provider_headers",
         "//score/crypto/src/daemon/provider/handler:crypto_handler_factory_headers",
@@ -106,14 +109,46 @@ cc_test(
 )
 
 cc_test(
+    name = "handler_selector_test",
+    srcs = ["src/handler_selector_test.cpp"],
+    deps = [
+        ":mediator",
+        ":mediator_test_doubles",
+        "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/common/context:context_registration",
+        "//score/crypto/src/daemon/config",
+        "//score/crypto/src/daemon/provider:provider_manager",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mediator_factory_test",
+    srcs = ["src/mediator_factory_test.cpp"],
+    deps = [
+        ":mediator",
+        ":mediator_operations",
+        ":mediator_test_doubles",
+        "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/config",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
+        "//score/crypto/src/daemon/provider:provider_manager",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "mediator_impl_test",
     srcs = ["src/mediator_impl_test.cpp"],
     deps = [
         ":mediator",
         ":mediator_operations",
         ":mediator_test_doubles",
+        "//score/crypto/src/daemon/common",
         "//score/crypto/src/daemon/config",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
         "//score/crypto/src/daemon/provider:provider_manager",
+        "//score/crypto/types",
         "@googletest//:gtest_main",
     ],
 )
@@ -123,28 +158,35 @@ cc_library(
     srcs = [
         "src/context_assembler.cpp",
         "src/context_creation_decoder.cpp",
+        "src/handler_selector.cpp",
+        "src/mediator_factory.cpp",
         "src/mediator_impl.cpp",
         "src/provider_arbiter.cpp",
     ],
     hdrs = [
         "i_mediator.hpp",
+        "mediator_factory.hpp",
         "mediator_impl.hpp",
         "src/context_assembler.hpp",
         "src/context_creation_decoder.hpp",
+        "src/handler_selector.hpp",
         "src/provider_arbiter.hpp",
     ],
     visibility = ["//:__subpackages__"],
     deps = [
         ":context_algorithm",
         ":mediator_operations",
-        "//score/crypto/src/daemon/common/context:context_mode",
-        "//score/crypto/src/daemon/common/context:context_types",
-        "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/common:algorithm_catalog",
         "//score/crypto/src/daemon/common:key_compatibility",
         "//score/crypto/src/daemon/common:operation_names",
+        "//score/crypto/src/daemon/common/context:context_mode",
         "//score/crypto/src/daemon/common/context:context_node",
+        "//score/crypto/src/daemon/common/context:context_registration",
+        "//score/crypto/src/daemon/common/context:context_types",
         "//score/crypto/src/daemon/common/context:handler_headers",
+        "//score/crypto/src/daemon/common/context:keyed_registry",
         "//score/crypto/src/daemon/config",
         "//score/crypto/src/daemon/control_plane:request_handler_hdr",
         "//score/crypto/src/daemon/data_manager",
@@ -155,5 +197,6 @@ cc_library(
         "//score/crypto/src/daemon/provider:provider_headers",
         "//score/crypto/src/daemon/provider:provider_manager",
         "//score/crypto/src/daemon/provider/handler:crypto_handler_factory_headers",
+        "//score/crypto/types",
     ],
 )
