@@ -44,7 +44,7 @@ else write allowed
   SlotManager -> Backend : StoreCertificate(cert)
   Backend -> Backend : write certificate and descriptor,\ndiscard the CRL of the previous certificate
   Backend --> SlotManager : success or error
-  SlotManager -> SlotManager : invalidate certificate and CRL cache entries,\nadvance slot generation
+  SlotManager -> SlotManager : invalidate certificate and CRL cache entries,\nadvance slot revision
   SlotManager --> Service : result
 
   Service -> TrustManager : NotifySlotChanged(slot)

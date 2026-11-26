@@ -191,6 +191,14 @@ class CertificateManagementIntegrationTest : public ::testing::Test
     cert::CertSlotRegistry::Sptr m_slot_registry;
     cert::CertSlotManager::Sptr m_slot_manager;
     cert::TrustStoreManager::Sptr m_trust_store_manager;
+
+    // Revision of the slot's current certificate, which a CRL validated against it is stored with.
+    cert::CertificateRevision CurrentRevision(cert::CertSlotHandle slot)
+    {
+        cert::CertificateRevision revision{};
+        EXPECT_TRUE(m_slot_manager->LoadCertificate(slot, MakeClientId(1U, 0U), &revision).has_value());
+        return revision;
+    }
 };
 
 TEST_F(CertificateManagementIntegrationTest, LoadsPersistsUpdatesAndInvalidatesTrustStoreAnchor)
@@ -328,7 +336,7 @@ TEST_F(CertificateManagementIntegrationTest, StoreCrl_GrantedForAuthorizedUid_St
     ASSERT_FALSE(m_slot_manager->HasCrl(*slot, MakeClientId(1U, 0U)).value());
 
     const cert::CrlData crl{{0xC0U, 0xC1U, 0xC2U}, score::crypto::FormatType::kDer};
-    const auto result = m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl);
+    const auto result = m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl, CurrentRevision(*slot));
     ASSERT_TRUE(result.has_value());
     EXPECT_TRUE(m_slot_manager->HasCrl(*slot, MakeClientId(1U, 0U)).value());
 }
@@ -341,7 +349,7 @@ TEST_F(CertificateManagementIntegrationTest, StoreCrl_DeniedForUnauthorizedUid)
     ASSERT_TRUE(slot.has_value());
 
     const cert::CrlData crl{{0xC0U, 0xC1U, 0xC2U}, score::crypto::FormatType::kDer};
-    const auto result = m_slot_manager->StoreCrl(*slot, MakeClientId(2U, 99U), crl);
+    const auto result = m_slot_manager->StoreCrl(*slot, MakeClientId(2U, 99U), crl, CurrentRevision(*slot));
     ASSERT_FALSE(result.has_value());
     EXPECT_EQ(result.error(), common::DaemonErrorCode::kAccessDenied);
     EXPECT_FALSE(m_slot_manager->HasCrl(*slot, MakeClientId(1U, 0U)).value());
@@ -354,7 +362,7 @@ TEST_F(CertificateManagementIntegrationTest, ClearCrl_DeniedForUnauthorizedUid)
     const auto slot = m_slot_registry->ResolveAppResource("device_certificate", 0U);
     ASSERT_TRUE(slot.has_value());
     const cert::CrlData crl{{0xC0U, 0xC1U, 0xC2U}, score::crypto::FormatType::kDer};
-    ASSERT_TRUE(m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl).has_value());
+    ASSERT_TRUE(m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl, CurrentRevision(*slot)).has_value());
 
     const auto result = m_slot_manager->ClearCrl(*slot, MakeClientId(2U, 99U));
     ASSERT_FALSE(result.has_value());
@@ -368,7 +376,7 @@ TEST_F(CertificateManagementIntegrationTest, ClearCrl_GrantedForAuthorizedUid_Re
     const auto slot = m_slot_registry->ResolveAppResource("device_certificate", 0U);
     ASSERT_TRUE(slot.has_value());
     const cert::CrlData crl{{0xC0U, 0xC1U, 0xC2U}, score::crypto::FormatType::kDer};
-    ASSERT_TRUE(m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl).has_value());
+    ASSERT_TRUE(m_slot_manager->StoreCrl(*slot, MakeClientId(1U, 0U), crl, CurrentRevision(*slot)).has_value());
 
     const auto result = m_slot_manager->ClearCrl(*slot, MakeClientId(1U, 0U));
     ASSERT_TRUE(result.has_value());

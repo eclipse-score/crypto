@@ -67,9 +67,9 @@ package "Daemon-lifetime owners and caches" {
   class CertSlotManager #DCEBFA {
     handler per slot
     SlotCache per slot:
-      certificate (weak) + generation
+      certificate (weak) + revision
       CRL state (presence, metadata; strong)
-      CRL snapshot (weak) + generation
+      CRL snapshot (weak) + revision
   }
   class "ICertSlotHandler\n(file-backed, CRL handler)" as SlotHandler #DCEBFA
   class TrustStoreManager #DCEBFA {
@@ -139,7 +139,7 @@ note bottom of CertSlotManager
   Caches slot content: the certificate and the CRL snapshot are held
   weakly, the CRL state strongly. A write through the daemon
   invalidates the slot's certificate and CRL entries and advances
-  their generations, so a load that overlapped its own invalidation
+  their revisions, so a load that overlapped its own invalidation
   is not cached.
 end note
 

@@ -91,7 +91,9 @@ class ICertificateManagementContext : public IContext
     /// @param cert_data PEM bundle or concatenated DER certificate data
     /// @param format Encoding format of the data
     /// @return Ordered vector of guards (first = first certificate in the data).
-    ///         Each guard owns one daemon-assigned ephemeral resource.
+    ///         Each guard owns one daemon-assigned ephemeral resource. On an error no certificate of the data
+    ///         stays registered; kInsufficientBufferSize means the data holds more certificates than one call
+    ///         returns, and smaller parts can be parsed separately.
     virtual score::Result<std::vector<CryptoResourceGuard>> ParseCertificates(score::cpp::span<const uint8_t> cert_data,
                                                                               FormatType format) = 0;
 
@@ -159,7 +161,7 @@ class ICertificateManagementContext : public IContext
     ///
     /// Call this before ConvertCertificateFormat() to allocate a correctly-sized buffer.
     ///
-    /// @param input Certificate data in the source format
+    /// @param input Single certificate in the source format
     /// @param input_format Format of the input data
     /// @param output_format Desired output format
     /// @return Required buffer size in bytes
@@ -167,11 +169,11 @@ class ICertificateManagementContext : public IContext
                                                                    FormatType input_format,
                                                                    FormatType output_format) = 0;
 
-    /// @brief Converts certificate data between DER and PEM formats.
+    /// @brief Converts one certificate between DER and PEM formats.
     ///
     /// Call GetConvertedCertificateSize() first to allocate the output buffer.
     ///
-    /// @param input Certificate data in the source format
+    /// @param input Single certificate in the source format
     /// @param input_format Format of the input data
     /// @param output_format Desired output format
     /// @param output Caller-supplied buffer; must be at least GetConvertedCertificateSize() bytes

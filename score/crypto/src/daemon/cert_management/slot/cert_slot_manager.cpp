@@ -62,6 +62,41 @@ score::crypto::Expected<ICertSlotHandler::Sptr, Error> CertSlotManager::GetOrCre
     return m_handlers.emplace(slot.index, std::move(handler.value())).first->second;
 }
 
+score::crypto::Expected<CertSlotManager::SlotWriter, Error> CertSlotManager::AuthorizeAndLockSlotForWrite(
+    CertSlotHandle slot,
+    data_manager::ClientId client_id,
+    std::string_view operation)
+{
+    const auto cfg_res = GetConfig(slot);
+    if (!cfg_res.has_value())
+        return score::crypto::make_unexpected(cfg_res.error());
+
+    const auto write_res = m_registry->CheckWriteAccess(slot, client_id);
+    if (!write_res.has_value())
+    {
+        score::mw::log::LogError() << kLogPrefix << operation << ": write access denied for slot " << slot.index;
+        return score::crypto::make_unexpected(write_res.error());
+    }
+
+    ICertSlotHandler::Sptr handler;
+    std::mutex* write_mutex{nullptr};
+    {
+        std::lock_guard lock(m_mutex);
+        auto result = GetOrCreate(slot);
+        if (!result.has_value())
+            return score::crypto::make_unexpected(result.error());
+        handler = std::move(result.value());
+        write_mutex = &m_slot_write_mutexes[slot.index];
+    }
+    return SlotWriter{std::move(handler), std::unique_lock<std::mutex>{*write_mutex}};
+}
+
+CertificateRevision CertSlotManager::GetCertificateRevision(CertSlotHandle slot)
+{
+    std::lock_guard lock(m_mutex);
+    return m_slot_cache[slot.index].certificate_revision;
+}
+
 // ---------------------------------------------------------------------------
 // Trust-store seam (internal to cert_management; no client check)
 // ---------------------------------------------------------------------------
@@ -78,7 +113,8 @@ score::crypto::Expected<ICertSlotHandler::Sptr, Error> CertSlotManager::GetTrust
 // ---------------------------------------------------------------------------
 
 score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificate(CertSlotHandle slot,
-                                                                                  data_manager::ClientId client_id)
+                                                                                  data_manager::ClientId client_id,
+                                                                                  CertificateRevision* revision)
 {
     const auto cfg_res = GetConfig(slot);
     if (!cfg_res.has_value())
@@ -88,7 +124,7 @@ score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificat
     if (!access_check.has_value())
         return score::crypto::make_unexpected(access_check.error());
 
-    return LoadCertificateCached(slot);
+    return LoadCertificateCached(slot, revision);
 }
 
 score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificateForTrustStore(CertSlotHandle slot)
@@ -99,22 +135,27 @@ score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificat
     return LoadCertificateCached(slot);
 }
 
-score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificateCached(CertSlotHandle slot)
+score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificateCached(CertSlotHandle slot,
+                                                                                        CertificateRevision* revision)
 {
     ICertSlotHandler::Sptr handler;
-    uint64_t generation{};
+    CertificateRevision read_revision{};
     {
         std::lock_guard lock(m_mutex);
         const auto& cache = m_slot_cache[slot.index];
         // Serve the parsed certificate while any holder keeps it alive, so concurrent clients
         // opening the same slot share one parse.
         if (auto cached = cache.certificate.lock())
+        {
+            if (revision != nullptr)
+                *revision = cache.certificate_revision;
             return cached;
+        }
         auto result = GetOrCreate(slot);
         if (!result.has_value())
             return score::crypto::make_unexpected(result.error());
         handler = std::move(result.value());
-        generation = cache.certificate_generation;
+        read_revision = cache.certificate_revision;
     }
 
     auto cert_obj = handler->LoadCertificate();
@@ -124,9 +165,12 @@ score::crypto::Expected<CertObject::Sptr, Error> CertSlotManager::LoadCertificat
     {
         std::lock_guard lock(m_mutex);
         auto& cache = m_slot_cache[slot.index];
-        if (cache.certificate_generation == generation)
+        if (cache.certificate_revision == read_revision)
             cache.certificate = cert_obj.value();
     }
+    // A write that overlapped the read has advanced the revision, so the one reported here no longer matches.
+    if (revision != nullptr)
+        *revision = read_revision;
     return cert_obj;
 }
 
@@ -233,36 +277,25 @@ score::crypto::Expected<int64_t, Error> CertSlotManager::GetCrlNextUpdate(CertSl
 // Writes
 // ---------------------------------------------------------------------------
 
-score::crypto::Expected<std::monostate, Error> CertSlotManager::StoreCertificate(CertSlotHandle slot,
-                                                                                 data_manager::ClientId client_id,
-                                                                                 const CertObject& cert,
-                                                                                 bool* content_may_have_changed)
+score::crypto::Expected<std::monostate, Error> CertSlotManager::StoreCertificate(
+    CertSlotHandle slot,
+    data_manager::ClientId client_id,
+    const CertObject& cert,
+    bool* content_may_have_changed,
+    CertificateRevision* certificate_revision)
 {
-    const auto cfg_res = GetConfig(slot);
-    if (!cfg_res.has_value())
-        return score::crypto::make_unexpected(cfg_res.error());
-
-    auto write_res = m_registry->CheckWriteAccess(slot, client_id);
-    if (!write_res.has_value())
-    {
-        score::mw::log::LogError() << kLogPrefix << "StoreCertificate: write access denied for slot " << slot.index;
-        return write_res;
-    }
-
-    ICertSlotHandler::Sptr handler;
-    {
-        std::lock_guard lock(m_mutex);
-        auto result = GetOrCreate(slot);
-        if (!result.has_value())
-            return score::crypto::make_unexpected(result.error());
-        handler = std::move(result.value());
-    }
+    auto writer = AuthorizeAndLockSlotForWrite(slot, client_id, "StoreCertificate");
+    if (!writer.has_value())
+        return score::crypto::make_unexpected(writer.error());
+    const auto& handler = writer.value().handler;
 
     if (content_may_have_changed != nullptr)
         *content_may_have_changed = true;
     auto result = handler->StoreCertificate(cert);
     // A failed write can still have changed what is stored, so the caches are dropped either way.
     InvalidateSlotCaches(slot);
+    if (result.has_value() && certificate_revision != nullptr)
+        *certificate_revision = GetCertificateRevision(slot);
     return result;
 }
 
@@ -270,25 +303,10 @@ score::crypto::Expected<std::monostate, Error> CertSlotManager::ClearSlot(CertSl
                                                                           data_manager::ClientId client_id,
                                                                           bool* content_may_have_changed)
 {
-    const auto cfg_res = GetConfig(slot);
-    if (!cfg_res.has_value())
-        return score::crypto::make_unexpected(cfg_res.error());
-
-    auto write_res = m_registry->CheckWriteAccess(slot, client_id);
-    if (!write_res.has_value())
-    {
-        score::mw::log::LogError() << kLogPrefix << "ClearSlot: write access denied for slot " << slot.index;
-        return write_res;
-    }
-
-    ICertSlotHandler::Sptr handler;
-    {
-        std::lock_guard lock(m_mutex);
-        auto result = GetOrCreate(slot);
-        if (!result.has_value())
-            return score::crypto::make_unexpected(result.error());
-        handler = std::move(result.value());
-    }
+    auto writer = AuthorizeAndLockSlotForWrite(slot, client_id, "ClearSlot");
+    if (!writer.has_value())
+        return score::crypto::make_unexpected(writer.error());
+    const auto& handler = writer.value().handler;
 
     if (content_may_have_changed != nullptr)
         *content_may_have_changed = true;
@@ -310,13 +328,13 @@ score::crypto::Expected<CertSlotManager::CrlState, Error> CertSlotManager::GetOr
     CertSlotHandle slot,
     const ICertSlotHandler::Sptr& handler)
 {
-    uint64_t generation{};
+    uint64_t revision{};
     {
         std::lock_guard lock(m_mutex);
         const auto& cache = m_slot_cache[slot.index];
         if (cache.crl_state.has_value())
             return *cache.crl_state;
-        generation = cache.crl_generation;
+        revision = cache.crl_revision;
     }
 
     CrlState state;
@@ -335,7 +353,7 @@ score::crypto::Expected<CertSlotManager::CrlState, Error> CertSlotManager::GetOr
     {
         std::lock_guard lock(m_mutex);
         auto& cache = m_slot_cache[slot.index];
-        if (cache.crl_generation == generation)
+        if (cache.crl_revision == revision)
             cache.crl_state = state;
     }
     return state;
@@ -344,7 +362,7 @@ score::crypto::Expected<CertSlotManager::CrlState, Error> CertSlotManager::GetOr
 score::crypto::Expected<CrlData::Sptrc, Error> CertSlotManager::GetOrLoadCrlData(CertSlotHandle slot)
 {
     ICertSlotHandler::Sptr handler;
-    uint64_t generation{};
+    uint64_t revision{};
     {
         std::lock_guard lock(m_mutex);
         const auto& cache = m_slot_cache[slot.index];
@@ -357,7 +375,7 @@ score::crypto::Expected<CrlData::Sptrc, Error> CertSlotManager::GetOrLoadCrlData
         if (!result.has_value())
             return score::crypto::make_unexpected(result.error());
         handler = std::move(result.value());
-        generation = cache.crl_generation;
+        revision = cache.crl_revision;
     }
 
     auto loaded = handler->LoadCrlData();
@@ -376,7 +394,7 @@ score::crypto::Expected<CrlData::Sptrc, Error> CertSlotManager::GetOrLoadCrlData
     {
         std::lock_guard lock(m_mutex);
         auto& cache = m_slot_cache[slot.index];
-        if (cache.crl_generation == generation)
+        if (cache.crl_revision == revision)
         {
             cache.crl_state = state;
             cache.crl_snapshot = snapshot;
@@ -394,26 +412,20 @@ void CertSlotManager::InvalidateCrl(CertSlotHandle slot)
 score::crypto::Expected<std::monostate, Error> CertSlotManager::StoreCrl(CertSlotHandle slot,
                                                                          data_manager::ClientId client_id,
                                                                          const CrlData& crl,
+                                                                         CertificateRevision certificate_revision,
                                                                          bool* content_may_have_changed)
 {
-    const auto cfg_res = GetConfig(slot);
-    if (!cfg_res.has_value())
-        return score::crypto::make_unexpected(cfg_res.error());
+    auto writer = AuthorizeAndLockSlotForWrite(slot, client_id, "StoreCrl");
+    if (!writer.has_value())
+        return score::crypto::make_unexpected(writer.error());
+    const auto& handler = writer.value().handler;
 
-    auto write_res = m_registry->CheckWriteAccess(slot, client_id);
-    if (!write_res.has_value())
+    // Certificate writes hold the same write mutex, so the check stays valid for the write below.
+    if (GetCertificateRevision(slot) != certificate_revision)
     {
-        score::mw::log::LogError() << kLogPrefix << "StoreCrl: write access denied for slot " << slot.index;
-        return write_res;
-    }
-
-    ICertSlotHandler::Sptr handler;
-    {
-        std::lock_guard lock(m_mutex);
-        auto result = GetOrCreate(slot);
-        if (!result.has_value())
-            return score::crypto::make_unexpected(result.error());
-        handler = std::move(result.value());
+        score::mw::log::LogError() << kLogPrefix << "StoreCrl: certificate of slot " << slot.index
+                                   << " changed since the CRL was validated";
+        return score::crypto::make_unexpected(Error::kResourceBusy);
     }
     if (content_may_have_changed != nullptr)
         *content_may_have_changed = true;
@@ -427,25 +439,10 @@ score::crypto::Expected<std::monostate, Error> CertSlotManager::ClearCrl(CertSlo
                                                                          data_manager::ClientId client_id,
                                                                          bool* content_may_have_changed)
 {
-    const auto cfg_res = GetConfig(slot);
-    if (!cfg_res.has_value())
-        return score::crypto::make_unexpected(cfg_res.error());
-
-    auto write_res = m_registry->CheckWriteAccess(slot, client_id);
-    if (!write_res.has_value())
-    {
-        score::mw::log::LogError() << kLogPrefix << "ClearCrl: write access denied for slot " << slot.index;
-        return write_res;
-    }
-
-    ICertSlotHandler::Sptr handler;
-    {
-        std::lock_guard lock(m_mutex);
-        auto result = GetOrCreate(slot);
-        if (!result.has_value())
-            return score::crypto::make_unexpected(result.error());
-        handler = std::move(result.value());
-    }
+    auto writer = AuthorizeAndLockSlotForWrite(slot, client_id, "ClearCrl");
+    if (!writer.has_value())
+        return score::crypto::make_unexpected(writer.error());
+    const auto& handler = writer.value().handler;
     if (content_may_have_changed != nullptr)
         *content_may_have_changed = true;
     auto result = handler->ClearCrl();

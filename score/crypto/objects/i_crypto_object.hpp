@@ -44,10 +44,12 @@ class ICryptoObject
     ICryptoObject(ICryptoObject&&) = default;
     ICryptoObject& operator=(ICryptoObject&&) = default;
 
-    /// @brief Returns the underlying CryptoResourceId handle.
+    /// @brief Returns the handle through which this object was obtained.
     virtual CryptoResourceId GetId() const noexcept = 0;
 
-    /// @brief Returns the resource type (kKey, kKeySlot, kCertificate, etc.).
+    /// @brief Returns the kind of object, which identifies its typed interface (kKey, kKeySlot, kCertificate, ...).
+    /// @details It can differ from GetId().type: a certificate view obtained through a certificate slot has a
+    /// kCertSlot id and the type kCertificate.
     virtual ResourceType GetType() const noexcept = 0;
 
   protected:
