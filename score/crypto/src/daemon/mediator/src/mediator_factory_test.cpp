@@ -177,6 +177,42 @@ TEST_F(MediatorFactoryTest, NullRegistrarFailsCreation)
     EXPECT_EQ(mediator.error(), DaemonErrorCode::kInternalError);
 }
 
+TEST_F(MediatorFactoryTest, MissingDataManagerFailsCreationBeforeAnyRegistration)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__registration");
+    RecordProperty("Description", "A missing data manager prevents the mediator from being created.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto registrar = std::make_shared<StubRegistrar>([](common::MediatorRegistries&) {
+        return true;
+    });
+
+    const auto mediator = MediatorFactory::Create(nullptr, m_provider_manager, nullptr, {registrar});
+
+    ASSERT_FALSE(mediator.has_value());
+    EXPECT_EQ(mediator.error(), DaemonErrorCode::kInvalidArgument);
+    EXPECT_EQ(registrar->Calls(), 0);
+}
+
+TEST_F(MediatorFactoryTest, MissingProviderManagerFailsCreationBeforeAnyRegistration)
+{
+    RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__registration");
+    RecordProperty("Description", "A missing provider manager prevents the mediator from being created.");
+    RecordProperty("TestType", "requirements-based");
+    RecordProperty("DerivationTechnique", "requirements-analysis");
+
+    const auto registrar = std::make_shared<StubRegistrar>([](common::MediatorRegistries&) {
+        return true;
+    });
+
+    const auto mediator = MediatorFactory::Create(m_data_manager, nullptr, nullptr, {registrar});
+
+    ASSERT_FALSE(mediator.has_value());
+    EXPECT_EQ(mediator.error(), DaemonErrorCode::kInvalidArgument);
+    EXPECT_EQ(registrar->Calls(), 0);
+}
+
 TEST_F(MediatorFactoryTest, QueryRegisteredForABuiltInOperationFailsCreation)
 {
     RecordProperty("PartiallyVerifies", "comp_req__crypto_mediator__registration");

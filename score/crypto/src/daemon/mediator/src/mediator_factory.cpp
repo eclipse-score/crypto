@@ -36,6 +36,12 @@ score::crypto::Expected<std::shared_ptr<IMediator>, common::DaemonErrorCode> Med
     key_management::KeyManagementService::Sptr km_service,
     const std::vector<common::IMediatorRegistrar::Sptr>& registrars)
 {
+    if (!data_manager || !provider_manager)
+    {
+        score::mw::log::LogError() << "The mediator requires a data manager and a provider manager";
+        return score::crypto::make_unexpected(common::DaemonErrorCode::kInvalidArgument);
+    }
+
     auto context_factories = std::make_shared<ContextFactoryRegistry>();
     auto resource_resolvers = std::make_shared<ResourceResolverRegistry>();
     auto mediator_queries = std::make_shared<MediatorQueryRegistry>();

@@ -236,5 +236,6 @@ Functional requirements
 
    The mediator shall be created with the context factories, resource resolvers
    and mediator queries that its subsystems register, before it serves a request.
-   A rejected registration, a null registrar, or a mediator query registered for
-   an operation that the mediator implements itself shall prevent its creation.
+   A missing data manager or provider manager, a rejected registration, a null
+   registrar, or a mediator query registered for an operation that the mediator
+   implements itself shall prevent its creation.

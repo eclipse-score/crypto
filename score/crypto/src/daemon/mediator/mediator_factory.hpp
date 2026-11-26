@@ -31,19 +31,21 @@ namespace score::crypto::daemon::mediator
 /// @brief Creates the daemon's mediator from the subsystem collaborators.
 ///
 /// Creation builds the mediator registries and asks each registrar to add its subsystem's entries.
-/// The registries are handed to the mediator and are not changed after creation. The mediator
-/// package names no subsystem: a subsystem takes part by implementing `IMediatorRegistrar`.
+/// The registries are handed to the mediator and are not changed after creation. A subsystem takes
+/// part by implementing `IMediatorRegistrar`; key management is also passed in directly, for key
+/// affinity and key authorization.
 class MediatorFactory final
 {
   public:
     /// @brief Create the mediator and populate its registries.
-    /// @param data_manager Data manager shared by the mediator.
-    /// @param provider_manager Provider manager that owns the providers.
+    /// @param data_manager Data manager shared by the mediator. Must not be null.
+    /// @param provider_manager Provider manager that owns the providers. Must not be null.
     /// @param km_service Key management service used for key affinity and key binding, or null when
     ///        key management is not configured.
     /// @param registrars Subsystems that add entries to the registries. None may be null.
-    /// @return The mediator, or an error if a registrar is null, a registration is rejected, or a
-    ///         mediator query is registered for an operation the mediator implements itself.
+    /// @return The mediator, or an error: kInvalidArgument if the data manager or the provider manager
+    ///         is null, or if a mediator query is registered for an operation the mediator implements
+    ///         itself; kInternalError if a registrar is null or a registration is rejected.
     [[nodiscard]] static score::crypto::Expected<std::shared_ptr<IMediator>, common::DaemonErrorCode> Create(
         data_manager::IDataManager::Sptr data_manager,
         provider::ProviderManager::Sptr provider_manager,

@@ -61,8 +61,9 @@ An operation code with neither fails. A resource type with no registered resolve
 ``kUnsupportedOperation``.
 
 Creating the mediator fails with ``kInternalError`` if a registrar is null or reports
-a rejected registration, and with ``kInvalidArgument`` if a query is registered for a
-built-in operation code.
+a rejected registration, and with ``kInvalidArgument`` if the data manager or the
+provider manager is missing, which is checked before any registrar is called, or if a
+query is registered for a built-in operation code.
 
 Fallback policy
 ---------------

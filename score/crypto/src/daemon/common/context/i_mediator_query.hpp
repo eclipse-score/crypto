@@ -21,7 +21,12 @@
 namespace score::crypto::daemon::common
 {
 
-/// @brief Handles one mediator operation code that the mediator does not implement itself.
+/// @brief Serves one mediator operation code that reads information without a context.
+///
+/// A query answers a request such as the metadata of a resource the client already holds an ID
+/// for. On the wire it is a mediator operation like CTX_CREATE, but it creates no context or data
+/// node and changes no state. Operations on a context go to that context's handler instead. The
+/// mediator passes a query only the operation codes it does not implement itself.
 ///
 /// Implementations are called from connection threads and must be thread-safe.
 class IMediatorQuery

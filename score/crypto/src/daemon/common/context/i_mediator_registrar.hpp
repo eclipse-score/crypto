@@ -37,6 +37,10 @@ using ResourceResolverRegistry = KeyedRegistry<score::crypto::ResourceType, IRes
 using MediatorQueryRegistry = KeyedRegistry<OperationAction, IMediatorQuery>;
 
 /// @brief The registries a subsystem adds its entries to.
+///
+/// Handed to a registrar for the duration of `IMediatorRegistrar::Register` only. Once the mediator
+/// serves requests, the registries are read concurrently without locking, so they are not changed
+/// after that call.
 struct MediatorRegistries final
 {
     ContextFactoryRegistry& context_factories;     ///< Factories for context types the subsystem serves.
@@ -58,7 +62,8 @@ class IMediatorRegistrar
     virtual ~IMediatorRegistrar() = default;
 
     /// @brief Add the subsystem's entries to the registries.
-    /// @param registries Registries to add to.
+    /// @param registries Registries to add to. Valid only during this call: the registrar does not keep
+    ///                   it, or a reference to any of its registries, and adds no entries after returning.
     /// @return True if every entry was registered. False if the registries rejected an entry, in
     ///         which case the mediator is not created.
     [[nodiscard]] virtual bool Register(MediatorRegistries& registries) const = 0;
