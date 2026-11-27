@@ -295,6 +295,31 @@ Expected<SlotResolution, score::crypto::daemon::common::DaemonErrorCode> KeyMana
 }
 
 // ---------------------------------------------------------------------------
+// GetSlotHandler
+// ---------------------------------------------------------------------------
+
+Expected<IKeySlotHandler::Sptr, score::crypto::daemon::common::DaemonErrorCode> KeyManagementService::GetSlotHandler(
+    const common::ProviderId& provider_id,
+    const KeySlotConfig& slot_config)
+{
+    auto provider = m_provider_manager ? m_provider_manager->GetProvider(provider_id) : nullptr;
+    if (!provider)
+    {
+        score::mw::log::LogError() << LOG_PREFIX << "GetSlotHandler: provider '" << provider_id << "' not found";
+        return score::crypto::make_unexpected(score::crypto::daemon::common::DaemonErrorCode::kInternalError);
+    }
+
+    auto slot_handler = provider->GetKeySlotHandler(slot_config);
+    if (!slot_handler)
+    {
+        score::mw::log::LogError() << LOG_PREFIX << "GetSlotHandler: provider '" << provider_id
+                                   << "' does not support slot operations";
+        return score::crypto::make_unexpected(score::crypto::daemon::common::DaemonErrorCode::kUnsupportedOperation);
+    }
+    return slot_handler;
+}
+
+// ---------------------------------------------------------------------------
 // ResolveKeyForOperation
 // ---------------------------------------------------------------------------
 
@@ -459,6 +484,7 @@ Expected<KeyBindingResult, score::crypto::daemon::common::DaemonErrorCode> KeyMa
         auto primary_prov_res = m_slot_registry->GetPrimaryProviderId(slot_handle);
         if (!primary_prov_res.has_value())
         {
+            // The slot's configured provider was not registered at startup.
             score::mw::log::LogError() << LOG_PREFIX << "BindKeyToContext: no primary provider for slot "
                                        << key_node_id;
             return score::crypto::make_unexpected(

@@ -181,6 +181,26 @@ cc_binary(
 )
 
 cc_binary(
+    name = "score_api_key_slot_info_test",
+    srcs = ["score_api_key_slot_info_test.cpp"],
+    data = [
+        "//score/tests/test_vectors/config:integration_test_config",
+    ],
+    defines = select({
+        "//score/crypto/src/backend:pkcs11_backend_enabled": ["SCORE_CRYPTO_HARDWARE_BACKEND_ENABLED=1"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = select({
+        "//score/crypto/src/backend:openssl_backend_active": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        "//score/crypto:crypto_stack",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_binary(
     name = "score_api_key_permissions_test",
     srcs = ["score_api_key_permissions_test.cpp"],
     data = [
@@ -240,6 +260,7 @@ integration_test(
             ":score_api_ecdsa_test",
             ":score_api_signature_test",
             ":score_api_key_import_export_test",
+            ":score_api_key_slot_info_test",
         ],
         "//conditions:default": [],
     }),
