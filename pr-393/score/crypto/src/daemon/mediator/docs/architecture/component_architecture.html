@@ -31,7 +31,7 @@
 
     <link rel="stylesheet" type="text/css" href="../../../../../../../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../../../../../../../_static/graphviz.css?v=4ae1632d" />
-    <link rel="stylesheet" type="text/css" href="../../../../../../../_static/css/score.css?v=d7d4a875" />
+    <link rel="stylesheet" type="text/css" href="../../../../../../../_static/css/score.css?v=5737673c" />
     <link rel="stylesheet" type="text/css" href="../../../../../../../_static/css/score_needs.css?v=6a6a7ab0" />
     <link rel="stylesheet" type="text/css" href="../../../../../../../_static/css/score_design.css?v=f381fa98" />
     <link rel="stylesheet" type="text/css" href="../../../../../../../_static/sphinx-design.min.css?v=6a604523" />
@@ -512,7 +512,7 @@
                   
   <section id="mediator-architecture">
 <h1>Mediator Architecture<a class="headerlink" href="#mediator-architecture" title="Link to this heading">#</a></h1>
-<div class="need_container docutils container" id="SNCB-ffe15c99">
+<div class="need_container docutils container" id="SNCB-d7decdfd">
 <div class="pst-scrollable-table-container"><table class="need needs_grid_complex needs_layout_score needs_style_none needs_type_document table" id="doc__crypto_mediator_architecture">
 <tbody>
 <tr class="head row-odd"><td class="head_left" colspan="2"><div class="needs_head_left line-block">
@@ -571,18 +571,19 @@ the provider’s capabilities, which no single provider can see.</p>
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
 <p>The mediator handles these operation families:</p>
 <ul class="simple">
-<li><p><strong>Context creation</strong> (<code class="docutils literal notranslate"><span class="pre">CTX_CREATE</span></code>) — decode, arbitrate, assemble. Described
-below.</p></li>
+<li><p><strong>Context creation</strong> (<code class="docutils literal notranslate"><span class="pre">CTX_CREATE</span></code>) — decode, select the handler, assemble.
+Described below.</p></li>
 <li><p><strong>Context close and shared-memory setup and teardown</strong> — node lifecycle under
 the client’s connection.</p></li>
 <li><p><strong>Resource resolution</strong> — session-level lookup of a named resource to a data
-node, through one resolver per resource type. A resolver is registered when
-the mediator is built; key slots are resolved through key management.</p></li>
+node, through the resolver registered for its resource type.</p></li>
+<li><p><strong>Mediator queries</strong> — operations that need no context, such as reading a
+resource’s metadata, served by the query registered for their operation code.</p></li>
 <li><p><strong>Forwarding</strong> — an operation addressed to an existing context is delivered to
 that context’s handler.</p></li>
 </ul>
 <p class="plantuml">
-<object data="../../../../../../../_images/plantuml-03c00638d90e2b3c3e0614d36413d9b359ee42d3.svg" type="image/svg+xml" style="width:866px;height:490px;background:#FFFFFF;"></object></p>
+<object data="../../../../../../../_images/plantuml-4a178cf24d8475cba69b925a958cbdf81912bb4d.svg" type="image/svg+xml" style="width:1342px;height:617px;background:#FFFFFF;"></object></p>
 </section>
 <section id="request-processing">
 <h2>Request processing<a class="headerlink" href="#request-processing" title="Link to this heading">#</a></h2>
@@ -601,6 +602,51 @@ a node that is already absent counts as closed. Shared-memory setup creates a
 data node under the connection for a shared-memory region, and teardown deletes
 it. Resource resolution looks up a resolver by resource type and returns the
 node it resolves to.</p>
+</section>
+<section id="registered-entries">
+<h2>Registered entries<a class="headerlink" href="#registered-entries" title="Link to this heading">#</a></h2>
+<p>Subsystems take part in the mediator through three registries. Each is filled
+once, while the mediator is created, and is only read afterwards.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<colgroup>
+<col style="width: 25.0%" />
+<col style="width: 25.0%" />
+<col style="width: 50.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Registry</p></th>
+<th class="head"><p>Key</p></th>
+<th class="head"><p>Entry</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Context factories</p></td>
+<td><p>Full context type, matched exactly</p></td>
+<td><p>Creates a new handler for each context of that type. Used for types that
+a subsystem serves itself, instead of a provider.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Resource resolvers</p></td>
+<td><p>Resource type</p></td>
+<td><p>Turns a named resource into a data node for the client.</p></td>
+</tr>
+<tr class="row-even"><td><p>Mediator queries</p></td>
+<td><p>Operation code</p></td>
+<td><p>Serves a mediator operation that has no context.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>A subsystem registers all of its entries in one call, as an <code class="docutils literal notranslate"><span class="pre">IMediatorRegistrar</span></code>.
+<code class="docutils literal notranslate"><span class="pre">MediatorFactory</span></code> creates the mediator: it builds the registries, calls each
+registrar, builds the handler selector, which holds the provider arbiter and the
+context-factory registry, and the context assembler once, and hands them to the
+mediator. The daemon passes the subsystems and holds no registry
+logic. <code class="docutils literal notranslate"><span class="pre">IMediator</span></code> and <code class="docutils literal notranslate"><span class="pre">MediatorDependencies</span></code> name no subsystem. Key
+management stays a direct collaborator of the provider arbiter, for key
+affinity, and of the context assembler, for key authorization.</p>
+<p>The mediator is created once and serves every connection. It holds no state of its
+own, only the shared collaborators and the read-only registries, so concurrent
+requests need no locking inside the mediator.</p>
 </section>
 <section id="context-creation">
 <h2>Context creation<a class="headerlink" href="#context-creation" title="Link to this heading">#</a></h2>
@@ -621,8 +667,10 @@ node it resolves to.</p>
 rejects malformed requests. The only step that knows the parameter
 layout.</p></td>
 </tr>
-<tr class="row-odd"><td><p>Arbitrate (<code class="docutils literal notranslate"><span class="pre">ProviderArbiter</span></code>)</p></td>
-<td><p>Chooses a provider and asks its handler factory for a handler.</p></td>
+<tr class="row-odd"><td><p>Select (<code class="docutils literal notranslate"><span class="pre">HandlerSelector</span></code>)</p></td>
+<td><p>Chooses the handler. A context type with a registered factory is created by
+that factory. Every other type is created through a provider chosen by the
+provider arbiter.</p></td>
 </tr>
 <tr class="row-even"><td><p>Assemble (<code class="docutils literal notranslate"><span class="pre">ContextAssembler</span></code>)</p></td>
 <td><p>Creates the context node, binds and authorizes the key, initializes the
@@ -631,24 +679,32 @@ handler, and undoes the node on failure.</p></td>
 </tbody>
 </table>
 </div>
+<p>The selector applies one rule. The context-factory registry is consulted first, by
+exact match on the full context type. A factory-served context is not bound to a
+provider, receives the validated request including the client’s provider
+preference, and is assembled exactly like any other context. For every other type
+the provider arbiter chooses the provider and asks its handler factory for the
+handler; the capability that a type’s scope requires affects only this provider
+selection.</p>
 <p>The steps communicate through values, not through each other: the decoder
-produces a request, the arbiter returns a provider and a handler, and the
-assembler consumes the handler. The mediator’s context-creation entry point
-only sequences them.</p>
+produces a request, the selector returns a handler and, when a provider created
+it, that provider, and the assembler consumes the handler. The mediator’s
+context-creation entry point only sequences them.</p>
 </section>
 <section id="static-decomposition">
 <h2>Static decomposition<a class="headerlink" href="#static-decomposition" title="Link to this heading">#</a></h2>
 <p>The composition diagram shows the implementation units and what each depends on.</p>
 <p class="plantuml">
-<object data="../../../../../../../_images/plantuml-39ebaa17e8258ab413c20996b0c9db1be5242d2d.svg" type="image/svg+xml" style="width:1426px;height:832px;background:#FFFFFF;"></object></p>
+<object data="../../../../../../../_images/plantuml-ae8f7833f336c2c17f4c5cf37ce97d0571c64cdf.svg" type="image/svg+xml" style="width:1880px;height:1120px;background:#FFFFFF;"></object></p>
 </section>
 <section id="responsibilities-that-stay-out-of-each-step">
 <h2>Responsibilities that stay out of each step<a class="headerlink" href="#responsibilities-that-stay-out-of-each-step" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p>The decoder performs no provider or data-node work.</p></li>
-<li><p>The arbiter does not create data nodes, bind keys or initialize handlers.</p></li>
-<li><p>The assembler does not choose providers. It receives a handler that already
-exists and a provider id.</p></li>
+<li><p>The selector and the arbiter do not create data nodes, bind keys or initialize
+handlers.</p></li>
+<li><p>The assembler does not choose handlers or providers. It receives a handler that
+already exists and a provider id.</p></li>
 </ul>
 </section>
 <section id="division-of-validation">
@@ -680,8 +736,8 @@ creation, key binding or rollback.</p>
 <p>The structure has two points where behaviour varies or is reused without
 changing the other steps.</p>
 <ul class="simple">
-<li><p><strong>The source of a handler</strong> is an arbitration concern only. Decoding and
-assembly are unaffected, because assembly takes a handler without regard to
+<li><p><strong>The source of a handler</strong> is a registered factory or a provider, and only the
+selector distinguishes them. Decoding and assembly are unaffected, because assembly takes a handler without regard to
 where it came from.</p></li>
 <li><p><strong>A daemon-internal caller that needs a context</strong> — for example a handler that
 must have a signature produced by a key it is not allowed to read — reuses
@@ -691,7 +747,7 @@ same key-management check as a client request, so that one implementation of
 the check serves both paths. The mediator does not define the form of such a
 caller.</p></li>
 </ul>
-<p>A change to the wire format is confined to the decoder. Arbitration and assembly
+<p>A change to the wire format is confined to the decoder. Selection and assembly
 consume the typed request unchanged.</p>
 </section>
 </section>
@@ -746,6 +802,7 @@ consume the typed request unchanged.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#purpose">Purpose</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#request-processing">Request processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#registered-entries">Registered entries</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#context-creation">Context creation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#static-decomposition">Static decomposition</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#responsibilities-that-stay-out-of-each-step">Responsibilities that stay out of each step</a></li>
