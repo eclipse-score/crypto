@@ -58,8 +58,8 @@ struct ProviderEntry
     ProviderEntry(const common::ProviderName& providerName,
                   common::ProviderId id,
                   std::shared_ptr<IProvider> prov,
-                  common::CryptoProviderType cryptoType)
-        : name(providerName), numeric_id(id), instance(prov), cryptoType(cryptoType)
+                  common::CryptoProviderType providerType)
+        : name(providerName), numeric_id(id), instance(prov), cryptoType(providerType)
     {
     }
 };

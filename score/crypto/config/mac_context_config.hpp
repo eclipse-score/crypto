@@ -71,9 +71,9 @@ struct MacContextConfig : public BaseContextConfig
         return *this;
     }
 
-    MacContextConfig& SetExtendedParameter(const std::string& key, const std::string& value)
+    MacContextConfig& SetExtendedParameter(const std::string& parameter_key, const std::string& value)
     {
-        BaseContextConfig::SetExtendedParameter(key, value);
+        BaseContextConfig::SetExtendedParameter(parameter_key, value);
         return *this;
     }
 };
