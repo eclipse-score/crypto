@@ -407,7 +407,7 @@ score::Result<CryptoResourceGuard> KeyManagementContextImpl::ImportKey(const Imp
     builder.operation({actors::OP_ACTOR_KEY_MANAGEMENT, keymgmt_ops::KEY_IMPORT})
         .with_in_string(params.algorithm)
         .with_in_val_uint32(static_cast<std::uint32_t>(params.permissions))
-        .with_in_val_uint32(static_cast<std::uint32_t>(params.format));
+        .with_in_val_uint32(keymgmt_ops::EncodeFormat(params.format));
 
     // Route the key material through the data plane (shared memory) rather than an
     // in-band control-plane buffer: acquire an input slot and attach it so the
@@ -497,7 +497,7 @@ score::Result<std::size_t> KeyManagementContextImpl::GetWrapKeySize(const WrapKe
 
 score::Result<std::size_t> KeyManagementContextImpl::ExportKey(const CryptoResourceId& key,
                                                                score::cpp::span<uint8_t> output,
-                                                               FormatType format)
+                                                               std::optional<FormatType> format)
 {
     if (key.type != ResourceType::kKey)
     {
@@ -518,7 +518,7 @@ score::Result<std::size_t> KeyManagementContextImpl::ExportKey(const CryptoResou
     proto::OperationRequestBuilder builder;
     builder.operation({actors::OP_ACTOR_KEY_MANAGEMENT, keymgmt_ops::KEY_EXPORT})
         .with_in_val_uint64(key.id)
-        .with_in_val_uint32(static_cast<std::uint32_t>(format));
+        .with_in_val_uint32(keymgmt_ops::EncodeFormat(format));
 
     // Route the exported key material through the data plane (shared memory) rather
     // than an in-band control-plane buffer: acquire an output slot and attach it so
@@ -559,7 +559,8 @@ score::Result<std::size_t> KeyManagementContextImpl::ExportKey(const CryptoResou
     return m_transcoder->ExtractOutputBuffer(tspan, validator);
 }
 
-score::Result<std::size_t> KeyManagementContextImpl::GetExportKeySize(const CryptoResourceId& key, FormatType format)
+score::Result<std::size_t> KeyManagementContextImpl::GetExportKeySize(const CryptoResourceId& key,
+                                                                      std::optional<FormatType> format)
 {
     if (key.type != ResourceType::kKey)
     {
@@ -574,7 +575,7 @@ score::Result<std::size_t> KeyManagementContextImpl::GetExportKeySize(const Cryp
                                   .forDataNodeId(m_context_id)
                                   .operation({actors::OP_ACTOR_KEY_MANAGEMENT, keymgmt_ops::KEY_GET_EXPORT_SIZE})
                                   .with_in_val_uint64(key.id)
-                                  .with_in_val_uint32(static_cast<std::uint32_t>(format))
+                                  .with_in_val_uint32(keymgmt_ops::EncodeFormat(format))
                                   .build();
 
     if (!control_req_result.has_value())

@@ -266,8 +266,10 @@ cc_test(
         ":provider_openssl_library",
         "//score/crypto/src/daemon/common:algorithm_catalog",
         "//score/crypto/src/daemon/common:algorithm_info",
+        "//score/crypto/src/daemon/key_management",
         "//score/crypto/src/daemon/key_management:key_management_headers",
         "//score/tests/utility",
+        "@score_openssl//:openssl",
         "@googletest//:gtest_main",
     ],
 )
