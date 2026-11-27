@@ -49,7 +49,8 @@ The mediator handles these operation families:
 * **Resource resolution** — session-level lookup of a named resource to a data
   node, through the resolver registered for its resource type.
 * **Mediator queries** — operations that need no context, such as reading a
-  resource's metadata, served by the query registered for their operation code.
+  resource's metadata or the providers' capabilities, served by the query
+  registered for their operation code.
 * **Forwarding** — an operation addressed to an existing context is delivered to
   that context's handler.
 

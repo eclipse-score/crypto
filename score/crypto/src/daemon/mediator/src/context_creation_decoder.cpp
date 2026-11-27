@@ -34,15 +34,15 @@ std::optional<common::ProviderTypePreference> DecodeProviderTypePreference(const
 
     switch (wire_value)
     {
-        case 0U:
+        case operations::provider_type_wire::kDefault:
             return common::ProviderTypePreference{ProviderType::DEFAULT, std::nullopt};
-        case 1U:
+        case operations::provider_type_wire::kHardware:
             return common::ProviderTypePreference{ProviderType::HARDWARE, std::nullopt};
-        case 2U:
+        case operations::provider_type_wire::kSoftware:
             return common::ProviderTypePreference{ProviderType::SOFTWARE, std::nullopt};
-        case 3U:
+        case operations::provider_type_wire::kHardwarePreferred:
             return common::ProviderTypePreference{ProviderType::HARDWARE, ProviderType::SOFTWARE};
-        case 4U:
+        case operations::provider_type_wire::kSoftwarePreferred:
             return common::ProviderTypePreference{ProviderType::SOFTWARE, ProviderType::HARDWARE};
         default:
             return std::nullopt;

@@ -45,6 +45,7 @@ package "daemon/key_management" {
 
 package "daemon/provider" {
   [ProviderManager] as Providers
+  [ProviderQueryRegistrar\n<size:9>provider and capability queries</size>] as ProviderQueries
   interface IProvider #DCEBFA
   interface ICryptoHandlerFactory #DCEBFA
 }
@@ -67,6 +68,8 @@ Factory ..> Arbiter : builds once
 Factory ..> Assembler : builds once
 KeyModule ..|> IMediatorRegistrar
 KeyModule --> KeyMgmt
+ProviderQueries ..|> IMediatorRegistrar
+ProviderQueries --> Providers
 
 Decoder ..> Selection
 

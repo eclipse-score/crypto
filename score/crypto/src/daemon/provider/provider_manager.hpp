@@ -250,6 +250,14 @@ class ProviderManager
     }
 
     /**
+     * @brief Ids of the registered providers that are initialized, in id order.
+     *
+     * Reads the providers' state only; unlike GetProvider() it never tries to
+     * initialize one.
+     */
+    [[nodiscard]] std::vector<common::ProviderId> InitializedProviderIds() const;
+
+    /**
      * @brief Look up the CryptoProviderType registered for a given provider by name.
      *
      * @param provider_name  The provider's human-readable name.

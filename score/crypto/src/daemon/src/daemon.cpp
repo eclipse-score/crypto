@@ -31,6 +31,7 @@
 #include "score/crypto/src/daemon/key_management/key_management_module.hpp"
 #include "score/crypto/src/daemon/mediator/mediator_factory.hpp"
 #include "score/crypto/src/daemon/provider/provider_manager_factory.hpp"
+#include "score/crypto/src/daemon/provider/provider_query_registrar.hpp"
 #include "score/crypto/src/daemon/src/disconnect_cleanup_callback.hpp"
 #include "score/crypto/src/ipc/message_passing_adapter/server/message_passing_control_server.h"
 
@@ -92,6 +93,8 @@ int main(int argc, char** argv)
     // Create the mediator. Each subsystem that takes part registers its entries during creation;
     // a rejected registration is a startup failure.
     std::vector<score::crypto::daemon::common::IMediatorRegistrar::Sptr> mediator_registrars;
+    mediator_registrars.push_back(
+        std::make_shared<score::crypto::daemon::provider::ProviderQueryRegistrar>(provider_manager));
     if (key_mgmt_module)
     {
         mediator_registrars.push_back(key_mgmt_module);

@@ -30,6 +30,7 @@ cc_test(
     srcs = ["mediator_operations_test.cpp"],
     deps = [
         ":mediator_operations",
+        "//score/crypto/src/daemon/common:operation_names",
         "@googletest//:gtest_main",
     ],
 )
@@ -59,6 +60,7 @@ cc_test(
     srcs = ["src/context_creation_decoder_test.cpp"],
     deps = [
         ":mediator",
+        ":mediator_operations",
         "//score/crypto/src/daemon/common",
         "//score/crypto/src/daemon/common/context:context_registration",
         "//score/crypto/src/daemon/common/context:context_types",
@@ -198,5 +200,28 @@ cc_library(
         "//score/crypto/src/daemon/provider:provider_manager",
         "//score/crypto/src/daemon/provider/handler:crypto_handler_factory_headers",
         "//score/crypto/types",
+    ],
+)
+
+cc_test(
+    name = "mediator_capabilities_test",
+    srcs = ["mediator_capabilities_test.cpp"],
+    deps = [
+        ":mediator",
+        ":mediator_operations",
+        "//score/crypto/common:crypto_common",
+        "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/daemon/config",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
+        "//score/crypto/src/daemon/data_manager",
+        "//score/crypto/src/daemon/key_management:key_management_headers",
+        "//score/crypto/src/daemon/provider:provider_capability_query",
+        "//score/crypto/src/daemon/provider:provider_headers",
+        "//score/crypto/src/daemon/provider:provider_manager",
+        "//score/crypto/src/daemon/provider/handler:crypto_handler_factory_headers",
+        "//score/crypto/src/ipc/protocol",
+        "//score/crypto/src/ipc/protocol:protocol_config",
+        "//score/crypto/types",
+        "@googletest//:gtest_main",
     ],
 )

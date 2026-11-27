@@ -196,6 +196,13 @@ bool ProviderManager::RegisterProvider(const common::ProviderName& providerName,
         return false;
     }
 
+    if (providerName.empty() || (providerName.size() > common::kMaxProviderNameLength))
+    {
+        score::mw::log::LogError() << "[ProviderManager] Cannot register provider '" << providerName
+                                   << "': name must be 1 to " << common::kMaxProviderNameLength << " characters";
+        return false;
+    }
+
     // Assign numeric ID: next index in m_provider_by_id
     common::ProviderId numeric_id = static_cast<common::ProviderId>(m_provider_by_id.size());
 
@@ -395,6 +402,22 @@ bool ProviderManager::IsProviderInitialized(common::ProviderId provider_id) cons
     }
     const auto& provider = m_provider_by_id[provider_id];
     return provider && provider->IsInitialized();
+}
+
+std::vector<common::ProviderId> ProviderManager::InitializedProviderIds() const
+{
+    std::vector<common::ProviderId> ids;
+    // Initialization runs under this mutex, so a provider's state is read whole.
+    std::lock_guard<std::mutex> lock(m_providerMutex);
+    for (common::ProviderId id = 0U; id < m_provider_by_id.size(); ++id)
+    {
+        const auto& provider = m_provider_by_id[id];
+        if (provider && provider->IsInitialized())
+        {
+            ids.push_back(id);
+        }
+    }
+    return ids;
 }
 
 void ProviderManager::Shutdown()

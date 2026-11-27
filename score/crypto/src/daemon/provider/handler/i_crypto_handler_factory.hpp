@@ -70,6 +70,20 @@ class ICryptoHandlerFactory
      */
     virtual ::score::Result<common::Handler::Sptr> CreateKeyManagementHandler() = 0;
 
+    /**
+     * @brief Tell whether CreateHandler() would accept this handler type and algorithm.
+     *
+     * Answers from the same gates CreateHandler() applies, without creating a
+     * handler or touching provider resources. Used for capability queries.
+     *
+     * @return false by default, for factories that do not report capabilities.
+     */
+    [[nodiscard]] virtual bool IsAlgorithmSupported(const common::HandlerId& /*handlerId*/,
+                                                    const ::score::crypto::AlgorithmDescriptor& /*algorithm*/) const
+    {
+        return false;
+    }
+
   protected:
     ICryptoHandlerFactory() = default;
 };

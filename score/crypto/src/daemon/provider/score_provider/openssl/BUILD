@@ -225,6 +225,7 @@ cc_library(
         "//score/crypto/src/daemon/common:algorithm_info",
         "//score/crypto/src/daemon/data_manager",
         "//score/crypto/src/daemon/data_plane",
+        "//score/crypto/src/daemon/common/context:context_types",
         "//score/crypto/src/daemon/key_management",
         "//score/crypto/src/daemon/provider:provider_headers",
         "//score/crypto/src/daemon/provider/handler:handler_utils_impl",

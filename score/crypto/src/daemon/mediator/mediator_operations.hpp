@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string_view>
 
 #include "score/crypto/src/daemon/common/actors.hpp"
 #include "score/crypto/src/daemon/common/types.hpp"
@@ -44,6 +46,36 @@ inline constexpr std::uint64_t SHM_WIRE_PROVIDER_TYPE_ABSENT = 0xFFU;
 inline constexpr std::uint64_t SHM_WIRE_PROVIDER_ID_UNBOUND = 0U;
 
 using OperationAction = common::OperationAction;
+
+/// @brief ProviderType values on the wire, shared by requests (CTX_CREATE and the
+/// key-management context) and replies (PROVIDER_INFO, SYSTEM_CAPABILITIES).
+///
+/// They equal the public ProviderType enumerator positions; the client checks
+/// that with static_asserts in crypto_context_impl.cpp.
+namespace provider_type_wire
+{
+inline constexpr std::uint8_t kDefault = 0U;
+inline constexpr std::uint8_t kHardware = 1U;
+inline constexpr std::uint8_t kSoftware = 2U;
+inline constexpr std::uint8_t kHardwarePreferred = 3U;
+inline constexpr std::uint8_t kSoftwarePreferred = 4U;
+}  // namespace provider_type_wire
+
+/// @brief Encode a registered provider's classification for PROVIDER_INFO and SYSTEM_CAPABILITIES.
+/// @return kHardware or kSoftware; kDefault for any other or no classification.
+[[nodiscard]] inline constexpr std::uint8_t EncodeProviderType(
+    const std::optional<common::CryptoProviderType> type) noexcept
+{
+    if (type == common::CryptoProviderType::HARDWARE)
+    {
+        return provider_type_wire::kHardware;
+    }
+    if (type == common::CryptoProviderType::SOFTWARE)
+    {
+        return provider_type_wire::kSoftware;
+    }
+    return provider_type_wire::kDefault;
+}
 
 // ============================================================================
 // Common Mediator Operations
@@ -171,6 +203,85 @@ inline control_plane::protocol::OperationIdentifier DestroyShmObject()
 {
     return control_plane::protocol::OperationIdentifier{.operationActor = common::actors::OP_ACTOR_MEDIATOR,
                                                         .operationAction = operations::SHM_DESTROY_OBJECT};
+}
+
+// ============================================================================
+// Provider and capability queries
+//
+// Served by the provider subsystem's mediator queries, which
+// provider::ProviderQueryRegistrar registers; the mediator implements none of them itself.
+// ============================================================================
+
+// PROVIDER_INFO
+// Request:  uint64 — provider id
+// Response: status_code (SUCCESS / kInvalidArgument for an unknown id)
+//           param[0]: uint16     — provider id
+//           param[1]: uint8      — wire ProviderType (0 = default, 1 = hardware, 2 = software)
+//           param[2]: DataBuffer — provider name (UTF-8, not NUL-terminated)
+inline constexpr OperationAction PROVIDER_INFO = 9;
+
+// QUERY_CAPABILITIES
+// Request:  string — algorithm name, as in the algorithm catalog
+// Response: status_code (SUCCESS)
+//           param[0]: uint16 — operation count N; 0 if no provider accepts this name
+//           N times:  DataBuffer operation name (see capability_operations)
+inline constexpr OperationAction QUERY_CAPABILITIES = 10;
+
+// SYSTEM_CAPABILITIES
+// Request:  param[0]: uint16 — cursor; 0 for the first page, then the cursor
+//                     returned by the previous page
+//           param[1]: uint16 — generation returned by the first page; ignored
+//                     when the cursor is 0
+// Response: status_code (SUCCESS)
+//           param[0]: uint16 — next cursor, or kSystemCapabilitiesDone after the last page
+//           param[1]: uint16 — generation of the snapshot this page was cut from
+//           then:     uint16 — provider count P
+//           P times:  uint16 provider id, uint8 wire ProviderType, DataBuffer name
+//           then:     uint16 — algorithm count A
+//           A times:  DataBuffer algorithm name (UTF-8, not NUL-terminated),
+//                     uint16 operation count N (never 0),
+//                     N times DataBuffer operation name (see capability_operations)
+// Effect:   Lists the providers and every catalog algorithm at least one of
+//           them accepts, in catalog order. One reply must fit the IPC frame,
+//           so the list is split into pages: the cursor walks the providers
+//           first, then the catalog rows, and each page holds as many entries
+//           as fit common::kMaxResponsePayloadBytes. All pages of a listing
+//           come from one snapshot, identified by its generation.
+// Errors:   kInvalidArgument for a missing or out-of-range cursor or generation;
+//           kInvalidOperation if the providers changed since the first page
+//           (the generation is stale): start again from cursor 0;
+//           kInsufficientBufferSize if a single entry does not fit one page.
+inline constexpr OperationAction SYSTEM_CAPABILITIES = 11;
+
+/// Next-cursor value SYSTEM_CAPABILITIES returns after the last page.
+inline constexpr std::uint16_t kSystemCapabilitiesDone = 0U;
+
+/// Operation names reported by QUERY_CAPABILITIES and SYSTEM_CAPABILITIES.
+///
+/// An algorithm reports the context type (common::context_types, e.g. "HASH",
+/// "SIGN") of every context a provider would create for it, followed by
+/// kGenerateKey if a provider generates keys for it. The client passes the
+/// names through to AlgorithmCapabilities::operations unchanged, so a new
+/// operation needs no client change.
+namespace capability_operations
+{
+inline constexpr std::string_view kGenerateKey = "GENERATE_KEY";
+}  // namespace capability_operations
+
+inline control_plane::protocol::OperationIdentifier GetProviderInfo()
+{
+    return control_plane::protocol::OperationIdentifier{.operationActor = common::actors::OP_ACTOR_MEDIATOR,
+                                                        .operationAction = operations::PROVIDER_INFO};
+}
+inline control_plane::protocol::OperationIdentifier QueryCapabilities()
+{
+    return control_plane::protocol::OperationIdentifier{.operationActor = common::actors::OP_ACTOR_MEDIATOR,
+                                                        .operationAction = operations::QUERY_CAPABILITIES};
+}
+inline control_plane::protocol::OperationIdentifier QuerySystemCapabilities()
+{
+    return control_plane::protocol::OperationIdentifier{.operationActor = common::actors::OP_ACTOR_MEDIATOR,
+                                                        .operationAction = operations::SYSTEM_CAPABILITIES};
 }
 
 // Starting point for custom OPs

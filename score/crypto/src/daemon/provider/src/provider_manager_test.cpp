@@ -196,6 +196,44 @@ TEST(ProviderManagerInitStateTest, FailedProviderRemainsRegisteredButUnavailable
     EXPECT_TRUE(mgr.GetProviderType("FAIL_PROVIDER").has_value());
 }
 
+TEST(ProviderManagerInitStateTest, InitializedProviderIdsListsOnlyInitializedProvidersWithoutInitializing)
+{
+    score::crypto::daemon::config::Config config;
+    provider::ProviderManager mgr(config.GetProviderInitConfig());
+
+    ASSERT_TRUE(mgr.RegisterProvider("OK_PROVIDER",
+                                     std::make_shared<ConfigurableStubProvider>("OK_PROVIDER", 0, false),
+                                     common::CryptoProviderType::SOFTWARE));
+    ASSERT_TRUE(mgr.RegisterProvider("FAIL_PROVIDER",
+                                     std::make_shared<ConfigurableStubProvider>("FAIL_PROVIDER", 1, true),
+                                     common::CryptoProviderType::HARDWARE));
+
+    EXPECT_TRUE(mgr.InitializedProviderIds().empty());
+
+    (void)mgr.Initialize();
+    EXPECT_EQ(mgr.InitializedProviderIds(), std::vector<common::ProviderId>{0U});
+}
+
+TEST(ProviderManagerRegistrationTest, RejectsNameThatDoesNotFitProviderInfo)
+{
+    score::crypto::daemon::config::Config config;
+    provider::ProviderManager mgr(config.GetProviderInitConfig());
+
+    const std::string longest(common::kMaxProviderNameLength, 'N');
+    const std::string too_long(common::kMaxProviderNameLength + 1U, 'N');
+    EXPECT_TRUE(mgr.RegisterProvider(
+        longest, std::make_shared<ConfigurableStubProvider>(longest, 0, false), common::CryptoProviderType::SOFTWARE));
+    EXPECT_FALSE(mgr.RegisterProvider(too_long,
+                                      std::make_shared<ConfigurableStubProvider>(too_long, 1, false),
+                                      common::CryptoProviderType::SOFTWARE));
+    EXPECT_FALSE(mgr.RegisterProvider(
+        "", std::make_shared<ConfigurableStubProvider>("", 1, false), common::CryptoProviderType::SOFTWARE));
+
+    EXPECT_TRUE(mgr.GetProviderType(longest).has_value());
+    EXPECT_FALSE(mgr.GetProviderType(too_long).has_value());
+    EXPECT_FALSE(mgr.GetProviderType("").has_value());
+}
+
 // ===========================================================================
 // GetProviderForCapability
 // ===========================================================================

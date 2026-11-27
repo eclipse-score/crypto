@@ -15,10 +15,12 @@
 
 #include "score/crypto/src/daemon/common/context/context_types.hpp"
 #include "score/crypto/src/daemon/control_plane/control_protocol.h"
+#include "score/crypto/src/daemon/mediator/mediator_operations.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -260,6 +262,27 @@ TEST(ProviderTypePreferenceDecodeTest, DecodesDefaultAndRejectsUnknownValues)
 
     EXPECT_FALSE(DecodeProviderTypePreference(5U).has_value());
     EXPECT_FALSE(DecodeProviderTypePreference(255U).has_value());
+}
+
+TEST(ProviderTypeEncodeTest, EncodesRegisteredProviderTypeForReplies)
+{
+    namespace wire = operations::provider_type_wire;
+    EXPECT_EQ(operations::EncodeProviderType(ProviderType::HARDWARE), wire::kHardware);
+    EXPECT_EQ(operations::EncodeProviderType(ProviderType::SOFTWARE), wire::kSoftware);
+    EXPECT_EQ(operations::EncodeProviderType(ProviderType::DEFAULT), wire::kDefault);
+    EXPECT_EQ(operations::EncodeProviderType(ProviderType::SPECIALIZED), wire::kDefault);
+    EXPECT_EQ(operations::EncodeProviderType(std::nullopt), wire::kDefault);
+}
+
+TEST(ProviderTypeEncodeTest, EncodedProviderTypeDecodesToTheSameType)
+{
+    for (const auto type : {ProviderType::HARDWARE, ProviderType::SOFTWARE})
+    {
+        const auto decoded = DecodeProviderTypePreference(operations::EncodeProviderType(type));
+        ASSERT_TRUE(decoded.has_value());
+        EXPECT_EQ(decoded->primary, type);
+        EXPECT_FALSE(decoded->fallback.has_value());
+    }
 }
 
 }  // namespace

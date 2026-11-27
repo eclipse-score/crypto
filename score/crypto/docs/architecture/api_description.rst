@@ -166,6 +166,64 @@ to detect that the resource is still referenced by an active context — call
        // e.g. resource still used by an active context — destroy it first
    }
 
+Provider and Capability Discovery
+---------------------------------
+
+``ICryptoContext`` answers which providers exist and what they can do:
+
+- ``GetProviderInfo(provider_id)`` returns id, ``ProviderType``
+  (``kHardware`` or ``kSoftware`` as configured) and name.
+  ``GetProviderInfo(resource)`` does the same for the resource's
+  ``primary_provider``. Unknown ids return ``kInvalidArgument``.
+- ``QueryCapabilities(algorithm)`` reports the operations that at least one
+  provider accepts for that name, as entries in ``operations``. Today these
+  are ``HASH``, ``MAC``, ``CIPHER``, ``SIGN``, ``VERIFY``, ``RANDOM`` and
+  ``GENERATE_KEY``, in that order. The daemon sends the names and the client
+  passes them through, so new operations reach applications without a client
+  change. ``supported`` is false and ``operations`` empty when no provider
+  accepts it, including for names outside the algorithm catalog.
+  An empty name reports the default random generator, CTR-DRBG, the same
+  generator a random context created without an algorithm uses.
+- ``QueryCapabilities()`` lists the providers and every catalog algorithm
+  with at least one operation, in catalog order. Each ECDSA curve/hash
+  pairing is a row of its own and is listed separately.
+
+The daemon resolves the name to its catalog row and asks each provider's
+handler factory ``IsAlgorithmSupported()`` and key factory
+``IsOperationSupported(KEY_GENERATE, ...)`` with that descriptor. These
+are the same checks that context creation and key generation apply, so a
+reported operation is one that ``Create[Op]Context()`` or ``GenerateKey()``
+would accept for that algorithm on at least one provider. It does not check
+key slots, permissions or memory. The answer is the union over providers;
+to target one provider, set ``ProviderType`` on the context config.
+
+The provider package serves the three queries as mediator queries
+(``ProviderInfoQuery``, ``AlgorithmCapabilitiesQuery`` and
+``SystemCapabilitiesQuery``), which ``ProviderQueryRegistrar`` registers
+when the daemon creates the mediator. All three read one
+``ProviderCapabilitySnapshot``: the initialized providers and, per catalog
+row, the operations they accept. The snapshot is taken on the first query,
+after the daemon has initialized its providers at startup. Each later query
+only compares the set of initialized providers with the snapshot's, a
+read-only check that never initializes a provider; the snapshot is rebuilt
+when the set has changed, for example after a hardware provider that failed
+at startup came up on a later context creation. Otherwise queries are
+answered from the snapshot, so a client cannot make the daemon retry a
+failed provider or query a token's mechanisms per request. The mediator
+only dispatches the operation codes.
+
+A single IPC reply is limited to about 2 KiB, which the full system listing
+can exceed. ``SYSTEM_CAPABILITIES`` is therefore paged: the request carries a
+cursor and a snapshot generation, the daemon fills each reply up to the
+response budget (``kMaxResponsePayloadBytes``) and returns the cursor of the
+next page and the generation of the snapshot it was cut from, and
+``QueryCapabilities()`` requests pages until the daemon reports the last one.
+The caller still receives one ``SystemCapabilities`` value. A later page is
+only served from the snapshot of the first one; if the snapshot was rebuilt
+in between, the daemon refuses the page with ``kInvalidOperation`` and
+``QueryCapabilities()`` starts the listing again, at most three times, so the
+pages are always consistent with each other.
+
 Memory and Data Plane Model
 ---------------------------
 
