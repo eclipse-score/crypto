@@ -22,8 +22,6 @@
 #include "provider_manager.hpp"
 #include "score/crypto/src/daemon/config/inc/config.hpp"
 
-#include <string>
-
 namespace score::crypto::daemon::provider
 {
 
@@ -65,9 +63,6 @@ class ProviderManagerFactory
 
   private:
     ProviderManagerFactory() = delete;
-
-    [[nodiscard]] static bool IsProviderAllowed(const std::string& provider_name,
-                                                const config::ProviderInitConfig& provider_config);
 
     [[nodiscard]] static score::crypto::Expected<std::unique_ptr<IProviderFactory>, common::DaemonErrorCode>
     CreateScoreProviderFactory(config::Config& config);
