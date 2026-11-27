@@ -24,9 +24,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//score/crypto/common:crypto_common",
-        "//score/crypto/types:types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -49,9 +49,9 @@ cc_library(
     hdrs = ["context_mode.hpp"],
     visibility = ["//visibility:public"],
     deps = [
-        "//score/crypto/types:types",
         "//score/crypto/src/common:common_types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -63,8 +63,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":context_mode",
-        "//score/crypto/types:types",
         "//score/crypto/src/daemon/common",
+        "//score/crypto/types",
     ],
 )
 
@@ -75,6 +75,56 @@ cc_test(
         ":context_mode",
         ":context_types",
         "//score/crypto/common:crypto_common",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Generic keyed registry filled at startup and read afterwards.
+cc_library(
+    name = "keyed_registry",
+    hdrs = ["keyed_registry.hpp"],
+    visibility = ["//visibility:public"],
+)
+
+# Resource resolver contract implemented by subsystems that serve RESOLVE_RESOURCE.
+cc_library(
+    name = "resource_resolver",
+    hdrs = ["i_resource_resolver.hpp"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
+    ],
+)
+
+# Registration contracts used by the mediator: context factories and mediator queries.
+cc_library(
+    name = "context_registration",
+    hdrs = [
+        "context_creation_request.hpp",
+        "i_context_factory.hpp",
+        "i_mediator_query.hpp",
+        "i_mediator_registrar.hpp",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":context_mode",
+        ":handler_headers",
+        ":keyed_registry",
+        ":resource_resolver",
+        "//score/crypto/src/common:common_types",
+        "//score/crypto/src/daemon/common",
+        "//score/crypto/src/daemon/common:algorithm_catalog",
+        "//score/crypto/src/daemon/control_plane:request_handler_hdr",
+        "//score/crypto/types",
+    ],
+)
+
+cc_test(
+    name = "keyed_registry_test",
+    srcs = ["keyed_registry_test.cpp"],
+    deps = [
+        ":keyed_registry",
         "@googletest//:gtest_main",
     ],
 )

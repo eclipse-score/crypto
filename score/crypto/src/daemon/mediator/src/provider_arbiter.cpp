@@ -88,8 +88,9 @@ score::crypto::Expected<ProviderHandlerSelection, score::crypto::CryptoErrorCode
 {
     // A key reference is accepted exactly when the context type needs a key, and a mismatch is refused before any
     // provider is asked. Provider selection uses the key reference to keep provider affinity, so a keyed request
-    // without one, or a key on a context type that cannot bind it, must not reach it.
-    const bool takes_key = common::RequiredKeyPermission(request.context_type, request.mode).has_value();
+    // without one, or a key on a context type that cannot bind it, must not reach it. RequiredKeyPermission has a
+    // value for a keyed type in every mode, so it is asked without a mode.
+    const bool takes_key = common::RequiredKeyPermission(request.context_type, std::nullopt).has_value();
     if (takes_key && !request.key_node_id.has_value())
     {
         score::mw::log::LogError() << "[SCORE_API_MED] ERROR - Missing key resource for keyed context: "
@@ -103,8 +104,8 @@ score::crypto::Expected<ProviderHandlerSelection, score::crypto::CryptoErrorCode
         return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kKeyOperationNotPermitted);
     }
 
-    const std::array<std::optional<common::CryptoProviderType>, 2U> candidates{request.provider.primary,
-                                                                               request.provider.fallback};
+    const std::array<std::optional<common::CryptoProviderType>, 2U> candidates{
+        request.provider_type_preference.primary, request.provider_type_preference.fallback};
     std::optional<common::ProviderId> previous_provider_id{};
     auto last_error = score::crypto::CryptoErrorCode::kProviderNotAvailable;
 

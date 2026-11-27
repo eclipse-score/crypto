@@ -60,8 +60,9 @@ class ContextAssembler final
 
     /// @brief Create and initialize a context, rolling back its node if a later step fails.
     /// @param request Validated context data, including the original creation parameters.
-    /// @param handler Provider handler to initialize for the new context.
-    /// @return The new context node id, or the error to return to the client.
+    /// @param handler Handler to initialize for the new context, created by a provider or a registered factory.
+    /// @return The new context node id, or the error to return to the client. A null @p handler is refused with
+    ///         kInternalError before any node is created.
     [[nodiscard]] score::crypto::Expected<data_manager::DataNodeId, common::DaemonErrorCode> Assemble(
         const ContextAssemblyRequest& request,
         const score::crypto::daemon::common::Handler::Sptr& handler) const;

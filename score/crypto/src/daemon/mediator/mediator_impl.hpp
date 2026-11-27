@@ -25,18 +25,14 @@
 #include "score/crypto/src/daemon/control_plane/i_request_handler.hpp"
 #include "score/crypto/src/daemon/data_manager/data_node_accessor.hpp"
 #include "score/crypto/src/daemon/data_manager/i_data_manager.hpp"
-#include "score/crypto/src/daemon/mediator/src/context_assembler.hpp"
-#include "score/crypto/src/daemon/mediator/src/provider_arbiter.hpp"
 #include "score/crypto/src/daemon/provider/provider_manager.hpp"
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -135,30 +131,6 @@ class MediatorImpl : public IMediator
                                            uint64_t session_id,
                                            const control_plane::SingleOperationRequest& operation,
                                            control_plane::protocol::OperationResponseBuilder& responseBuilder);
-
-    /// @brief Populate the dispatch table for supported session-resource types.
-    void RegisterResourceResolvers();
-
-    /// @brief Callback signature for resolving a named session resource and writing its response.
-    /// @param client_id Client requesting the resource.
-    /// @param session_id Session in which the resource is resolved.
-    /// @param resource_name Application resource name.
-    /// @param op_id Identifier of the resource-resolution operation.
-    /// @param responseBuilder Builder receiving the resolved resource or an error.
-    /// @return True if resolution succeeded.
-    using ResourceResolverFn = std::function<bool(uint64_t client_id,
-                                                  uint64_t session_id,
-                                                  const std::string& resource_name,
-                                                  const common::OperationIdentifier& op_id,
-                                                  control_plane::protocol::OperationResponseBuilder& responseBuilder)>;
-
-    /// Dispatch table keyed by the numeric ResourceType value. Populated once by RegisterResourceResolvers().
-    std::unordered_map<uint8_t, ResourceResolverFn> m_resource_resolvers;
-
-    /// Provider and handler selection for CTX_CREATE.
-    ProviderArbiter m_arbiter;
-    /// Context node creation, key binding, and handler initialization for CTX_CREATE.
-    ContextAssembler m_assembler;
 
     /// @brief Handle a mediator-owned control-plane operation.
     /// @param request Parent control-plane request.

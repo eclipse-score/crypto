@@ -61,7 +61,7 @@ bool IsContextParameterPresent(const control_plane::protocol::SingleOperationReq
 
 }  // namespace
 
-score::crypto::Expected<ContextCreationRequest, score::crypto::CryptoErrorCode> DecodeContextCreationRequest(
+score::crypto::Expected<common::ContextCreationRequest, score::crypto::CryptoErrorCode> DecodeContextCreationRequest(
     const control_plane::protocol::SingleOperationRequest& operation)
 {
     if ((operation.parameters.size() < 2U) || (operation.parameters.size() > operations::CTX_MAX_PARAMETER_COUNT))
@@ -87,7 +87,7 @@ score::crypto::Expected<ContextCreationRequest, score::crypto::CryptoErrorCode> 
     }
     const auto algorithm = algorithm_res.value();
 
-    common::ProviderTypePreference provider_preference{common::CryptoProviderType::DEFAULT, std::nullopt};
+    common::ProviderTypePreference provider_type_preference{common::CryptoProviderType::DEFAULT, std::nullopt};
     if (IsContextParameterPresent(operation, operations::CTX_PARAM_PROVIDER_TYPE))
     {
         const auto provider_type_res = operation.getParameter<std::uint8_t>(operations::CTX_PARAM_PROVIDER_TYPE);
@@ -104,7 +104,7 @@ score::crypto::Expected<ContextCreationRequest, score::crypto::CryptoErrorCode> 
                                        << static_cast<unsigned int>(provider_type_res.value());
             return score::crypto::make_unexpected(score::crypto::CryptoErrorCode::kInvalidArgument);
         }
-        provider_preference = decoded_preference.value();
+        provider_type_preference = decoded_preference.value();
     }
 
     // Optional key_node_id parameter (param[3]) for binding a key at context creation.
@@ -141,10 +141,10 @@ score::crypto::Expected<ContextCreationRequest, score::crypto::CryptoErrorCode> 
         }
     }
 
-    ContextCreationRequest request{};
+    common::ContextCreationRequest request{};
     request.context_type = context_type;
     request.algorithm = algorithm;
-    request.provider = provider_preference;
+    request.provider_type_preference = provider_type_preference;
     request.key_node_id = key_node_id;
     request.mode = mode;
     request.required_capability = common::RequiredProviderCapability(context_type);
